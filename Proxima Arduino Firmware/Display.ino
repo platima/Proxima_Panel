@@ -100,10 +100,10 @@ void menuLayer_1(){
 
 void display_mode_auto(){
   menu();
-  Serial.print("brightness LVL: ");
-  Serial.println(brightness_Level);
-  Serial.print("brightness value: ");
-  Serial.println(brightness[brightness_Level]);
+  //Serial.print("brightness LVL: ");
+  //Serial.println(brightness_Level);
+  //Serial.print("brightness value: ");
+  //Serial.println(brightness[brightness_Level]);
   // TOP
   display.clearDisplay();
   display.setTextSize(1);             

@@ -1,4 +1,4 @@
-void RGB_Panel_routine(){
+void processRGBPanel(){
   if(panelMode == "Auto"){
       panelSet(0);
       display_mode_auto();

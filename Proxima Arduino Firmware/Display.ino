@@ -100,10 +100,6 @@ void menuLayer_1(){
 
 void display_mode_auto(){
   menu();
-  //Serial.print("brightness LVL: ");
-  //Serial.println(brightness_Level);
-  //Serial.print("brightness value: ");
-  //Serial.println(brightness[brightness_Level]);
   // TOP
   display.clearDisplay();
   display.setTextSize(1);             
@@ -153,8 +149,10 @@ void display_mode_auto(){
 void Wifi_connected_animation(){
   display.setTextSize(1);             
   display.setTextColor(WHITE);        
-  display.setCursor(100,0);             
-  display.println("WIFI");
+  display.setCursor(50,0);             
+  // Show IP address instead of just "WIFI"
+  String ipAddress = WiFi.localIP().toString();
+  display.println(ipAddress);
 }
 
 int j = 0;
@@ -178,5 +176,31 @@ void Wifi_connection_animation(){
   }else{
     j++;
   } 
+}
 
+// Add a function to open the configuration portal on demand
+// This could be bound to a long-press of a button if needed
+void startConfigPortal() {
+  // Initialize WiFiManager
+  WiFiManager wifiManager;
+  
+  // Set timeout for configuration portal (3 minutes)
+  wifiManager.setConfigPortalTimeout(180);
+  
+  // Display message when portal starts  
+  Serial.println("Starting configuration portal");
+  
+  // Create a unique name for the config portal
+  String apName = "Proxima-" + String(ESP.getChipId(), HEX);
+  
+  // Start config portal
+  wifiManager.setAPCallback(configModeCallback);
+  
+  if (!wifiManager.startConfigPortal(apName.c_str())) {
+    Serial.println("Failed to connect or timeout occurred");
+  } else {
+    // Connected to WiFi
+    Serial.println("Connected to WiFi");
+    wifiStatus = true;
+  }
 }

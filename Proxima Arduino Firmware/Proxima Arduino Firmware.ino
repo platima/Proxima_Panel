@@ -6,6 +6,8 @@
 // New author: Platima
 // https://github.com/platima
 // https://plati.ma
+// ESP Board: ESP-12E / 12F
+// Board URL: http://arduino.esp8266.com/stable/package_esp8266com_index.json
 //
 // Original Credits:
 //

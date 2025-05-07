@@ -1,9 +1,8 @@
-## What is OBJEX?
-OBJEX is a "startup" maybe (I don't know, it's early to say). 
-Currently, it's a set of experimental IoT projects. Every project has a different name, for example, ORB1T.
-The goal of OBJEX is to develop IoT systems/devices.
+## Proxima Panel
 
-## PROXIMA-ALPHA
+### Background
+Original work by Salvatore Raccardi https://github.com/salvatoreraccardi/PROXIMA-ALPHA
+Forked by Platima https://plati.ma / https://github.com/platima
 
 **Elevator pitch**
 

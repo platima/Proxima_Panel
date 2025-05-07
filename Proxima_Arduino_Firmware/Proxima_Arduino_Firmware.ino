@@ -20,6 +20,8 @@
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
+#include <DNSServer.h>
+#include <WiFiManager.h>          // https://github.com/tzapu/WiFiManager
 
 // WS2812B
 #include <Adafruit_NeoPixel.h>
@@ -44,10 +46,6 @@ Adafruit_SH1106G display = Adafruit_SH1106G(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, 
 #define LED_PIN D7
 #define LED_COUNT 40
 Adafruit_NeoPixel RGBpanel(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
-
-// CONN
-#define WIFI_SSID "Pi-Fi"
-#define WIFI_PASSWORD "PiFi1234"
 
 // BTN
 #define btn_up D5
@@ -118,7 +116,7 @@ void setup() {
   delay(250); // wait for the OLED to power up
   display.begin(i2c_Address, true);
 
-  // Join wifi
+  // Join wifi using WiFiManager
   conn();
 }
 

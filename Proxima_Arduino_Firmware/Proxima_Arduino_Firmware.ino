@@ -1,6 +1,6 @@
 //
 // Proxima LED Panel
-// Version 0.2.0
+// Version 0.2.3
 // Based on original work of Objex Proxima Alpha by Salvatore Raccardi
 // Start date: 2025-05-05
 // New author: Platima

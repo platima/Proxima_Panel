@@ -23,6 +23,14 @@ String apName = "";
 int j = 0; // For WiFi animation
 unsigned long lastAnimationTime = 0;
 const unsigned long ANIMATION_INTERVAL = 500; // Animation frame interval in ms
+bool webServerStarted = false; // Flag to track if web server was started
+
+// Callback for when WiFi credentials change
+void saveWiFiConfigCallback() {
+  Serial.println("WiFi credentials saved, also saving panel settings");
+  // Also save our custom settings when WiFi settings change
+  saveSettings();
+}
 
 void setupWiFi() {
   // Initialize WiFi state machine
@@ -34,6 +42,9 @@ void setupWiFi() {
   
   // Configure WiFiManager
   wifiManager.setConfigPortalTimeout(WIFI_PORTAL_TIMEOUT / 1000); // seconds
+  
+  // Set callback for when settings are saved
+  wifiManager.setSaveConfigCallback(saveWiFiConfigCallback);
   
   // Start the connection process
   startWiFiConnection();
@@ -109,6 +120,12 @@ void processWiFiConnection() {
         wifiLastStateChange = millis();
         wifiStatus = true;
         
+        // Start the web server if not already started
+        if (!webServerStarted) {
+          setupWebServer();
+          webServerStarted = true;
+        }
+        
         // Display connected info
         display.clearDisplay();
         display.setTextSize(1);
@@ -117,13 +134,21 @@ void processWiFiConnection() {
         display.println("Connected to WiFi");
         display.setCursor(0, 20);
         display.println("IP: " + WiFi.localIP().toString());
+        display.setCursor(0, 36);
+        display.println("Web Control:");
+        display.setCursor(0, 48);
+        display.println("http://proxima.local");
         display.display();
         
         Serial.println("WiFi connected");
         Serial.print("IP address: ");
         Serial.println(WiFi.localIP());
         
-        // Show connection info briefly, but don't block
+        // Save settings when connection is established
+        saveSettings();
+        
+        // Show connection info for 3 seconds then continue
+        delay(3000);
       } 
       else if (millis() - wifiLastStateChange >= WIFI_CONNECT_TIMEOUT) {
         // Timeout, start config portal
@@ -142,6 +167,12 @@ void processWiFiConnection() {
         wifiLastStateChange = millis();
         wifiStatus = true;
         
+        // Start the web server if not already started
+        if (!webServerStarted) {
+          setupWebServer();
+          webServerStarted = true;
+        }
+        
         // Display connected info
         display.clearDisplay();
         display.setTextSize(1);
@@ -150,11 +181,21 @@ void processWiFiConnection() {
         display.println("Connected to WiFi");
         display.setCursor(0, 20);
         display.println("IP: " + WiFi.localIP().toString());
+        display.setCursor(0, 36);
+        display.println("Web Control:");
+        display.setCursor(0, 48);
+        display.println("http://proxima.local");
         display.display();
         
         Serial.println("WiFi connected via portal");
         Serial.print("IP address: ");
         Serial.println(WiFi.localIP());
+        
+        // Save settings after portal connection
+        saveSettings();
+        
+        // Show connection info for 3 seconds then continue
+        delay(3000);
       } 
       else if (millis() - wifiLastStateChange >= WIFI_PORTAL_TIMEOUT) {
         // Portal timeout
@@ -172,6 +213,9 @@ void processWiFiConnection() {
         display.display();
         
         Serial.println("WiFi portal timeout");
+        
+        // Show message for 2 seconds then continue
+        delay(2000);
       } 
       else {
         // Still in portal, update display with animation
@@ -181,11 +225,25 @@ void processWiFiConnection() {
       
     case WIFI_CONNECTED:
       // Already connected, nothing to do
+      // However, periodically check if still connected
+      if (WiFi.status() != WL_CONNECTED) {
+        Serial.println("WiFi connection lost, attempting to reconnect");
+        wifiStatus = false;
+        wifiConnState = WIFI_CONNECTING;
+        wifiLastStateChange = millis();
+        WiFi.begin(); // Try to reconnect
+      }
       break;
       
     case WIFI_FAILED:
       // Failed to connect, but continue with the rest of the program
-      // Can attempt reconnection later if needed
+      // Periodically try to reconnect (every 60 seconds)
+      if (millis() - wifiLastStateChange >= 60000) {
+        Serial.println("Attempting to reconnect WiFi");
+        wifiConnState = WIFI_CONNECTING;
+        wifiLastStateChange = millis();
+        WiFi.begin(); // Try to reconnect
+      }
       break;
   }
 }

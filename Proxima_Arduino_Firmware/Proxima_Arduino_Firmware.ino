@@ -20,6 +20,14 @@
 
 void setup() {
   Serial.begin(9600);
+  Serial.println("\nProxima LED Panel v0.2.0 Starting...");
+  
+  // Initialize storage first
+  Serial.println("Initializing storage...");
+  initStorage();
+  
+  // Load settings
+  loadSettings();
   
   // BTNS INIT
   pinMode(btn_up, INPUT);
@@ -37,7 +45,9 @@ void setup() {
   setupWiFi();
   
   // Set initial panel state
-  panelSet(0);
+  if (currentAnimation == STATIC) {
+    panelSet(0);
+  }
 }
 
 void loop() {
@@ -47,6 +57,19 @@ void loop() {
   // Handle WiFi connection state machine
   processWiFiConnection();
   
+  // If WiFi is connected, handle web server requests
+  if (wifiStatus) {
+    handleWebServer();
+  }
+  
+  // Process animations (if any)
+  processAnimations();
+  
   // Continue with normal operation regardless of WiFi status
-  processRGBPanel();
+  if (currentAnimation == STATIC) {
+    processRGBPanel();
+  }
+  
+  // Check if settings need to be saved (will only save if values changed)
+  saveSettingsIfNeeded();
 }

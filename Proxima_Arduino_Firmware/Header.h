@@ -5,6 +5,10 @@
 #include <DNSServer.h>
 #include <WiFiManager.h>          // https://github.com/tzapu/WiFiManager
 
+// Storage libraries
+#include <LittleFS.h>             // For file system
+#include <ArduinoJson.h>          // For JSON serialization - install version 6.x
+
 // WS2812B
 #include <Adafruit_NeoPixel.h>
 #ifdef __AVR__
@@ -48,6 +52,15 @@ int brightness_Level = 1;
 
 // MENU
 int menuLayer = 0;
+
+// Animation mode from Animations.ino
+enum AnimationMode;  // Forward declaration
+extern AnimationMode currentAnimation;  // External declaration
+
+// Animation functions - declared here to be used in main file
+void processAnimations();
+String getAnimationName(AnimationMode mode);
+AnimationMode getAnimationByName(String name);
 
 const unsigned char bitmap_WIFI1[] PROGMEM = {
     0x00, 0x00, 0x00, 

@@ -4,9 +4,6 @@
 // Version 0.2.0
 //
 
-// Current animation mode
-AnimationMode currentAnimation = STATIC;
-
 // Animation timing variables
 unsigned long lastAnimationUpdate = 0;
 unsigned long animationInterval = 30; // Default 30ms (about 33fps)

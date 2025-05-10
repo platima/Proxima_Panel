@@ -53,9 +53,17 @@ int brightness_Level = 1;
 // MENU
 int menuLayer = 0;
 
-// Animation mode from Animations.ino
-enum AnimationMode;  // Forward declaration
-extern AnimationMode currentAnimation;  // External declaration
+// Animation mode enum
+enum AnimationMode {
+  STATIC,
+  BREATHING,
+  RAINBOW,
+  PULSE,
+  COLOR_FADE
+};
+
+// Current animation mode
+extern AnimationMode currentAnimation = STATIC;
 
 // Animation functions - declared here to be used in main file
 void processAnimations();

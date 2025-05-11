@@ -1,8 +1,6 @@
-// 
-// WebInterface.ino - Web server for remote control
-// For Proxima LED Panel
-// Version 0.2.4
-//
+// Web_Interface.ino for Proxima Arduino Firmware
+// 2025 Platima (https://github.com/platima https://plati.ma)
+// Handles HTTP connections for web control
 
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
@@ -441,7 +439,7 @@ void handleRoot() {
   html.replace("%RED%", String(red));
   html.replace("%GREEN%", String(green));
   html.replace("%BLUE%", String(blue));
-  html.replace("%BRIGHTNESS%", String(brightness_Level)); // Now 0-255 range
+  html.replace("%BRIGHTNESS%", String(rgbBrightnessLevel)); // Now 0-255 range
   
   // Calculate hex color
   String hexColor = "";
@@ -483,15 +481,15 @@ void handleSave() {
   }
   
   if (server.hasArg("br")) {
-    brightness_Level = server.arg("br").toInt(); // Now directly 0-255
+    rgbBrightnessLevel = server.arg("br").toInt(); // Now directly 0-255
     // Ensure brightness is within valid range
-    if (brightness_Level < 0) brightness_Level = 0;
-    if (brightness_Level > 255) brightness_Level = 255;
+    if (rgbBrightnessLevel < 0) rgbBrightnessLevel = 0;
+    if (rgbBrightnessLevel > 255) rgbBrightnessLevel = 255;
   }
   
   // Apply settings immediately
   if (currentAnimation == STATIC) {
-    panelSet(0);
+    rgbPanelSet(0);
   }
   
   // Save to storage
@@ -508,7 +506,7 @@ void handleSetMode() {
     
     if (mode == "static") {
       currentAnimation = STATIC;
-      panelSet(0); // Apply current static color
+      rgbPanelSet(0); // Apply current static color
     } else if (mode == "animation") {
       if (server.hasArg("animation")) {
         String anim = server.arg("animation");
@@ -537,7 +535,7 @@ void handleGetSettings() {
   String json = "{\"red\":" + String(red) + 
                 ",\"green\":" + String(green) + 
                 ",\"blue\":" + String(blue) + 
-                ",\"brightness\":" + String(brightness_Level) + 
+                ",\"brightness\":" + String(rgbBrightnessLevel) + 
                 ",\"mode\":\"" + ((currentAnimation == STATIC) ? "static" : "animation") + "\"" +
                 ",\"animation\":\"" + String(getAnimationName(currentAnimation)) + "\"}";
                 

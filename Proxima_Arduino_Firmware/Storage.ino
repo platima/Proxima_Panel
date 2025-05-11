@@ -1,8 +1,6 @@
-// 
-// Storage.ino - Persistent storage implementation
-// For Proxima LED Panel
-// Version 0.2.4
-//
+// Storage.ino for Proxima Arduino Firmware
+// 2025 Platima (https://github.com/platima https://plati.ma)
+// Handles serialisation and config storage
 
 #include <LittleFS.h>
 #include <ArduinoJson.h>
@@ -36,8 +34,8 @@ bool loadSettings() {
     return false;
   }
   
-  // Allocate a JsonDocument with larger size for animation support
-  StaticJsonDocument<512> doc;
+  // Allocate a JsonDocument for animation support
+  JsonDocument doc;
   
   // Deserialize the JSON document
   DeserializationError error = deserializeJson(doc, file);
@@ -52,8 +50,8 @@ bool loadSettings() {
   red = doc["red"] | 20;  // Default to 20 if not present
   green = doc["green"] | 20;
   blue = doc["blue"] | 20;
-  brightness_Level = doc["brightness"] | 50; // Now 0-255 range, default to 50
-  panelMode = doc["mode"] | "Auto";
+  rgbBrightnessLevel = doc["brightness"] | 50; // Now 0-255 range, default to 50
+  rgbPanelMode = doc["mode"] | "Auto";
   
   // Load animation mode
   String animationModeName = doc["animation"] | "Static";
@@ -72,9 +70,9 @@ bool loadSettings() {
   Serial.print(blue);
   Serial.println(")");
   Serial.print("Brightness level: ");
-  Serial.println(brightness_Level);
+  Serial.println(rgbBrightnessLevel);
   Serial.print("Panel mode: ");
-  Serial.println(panelMode);
+  Serial.println(rgbPanelMode);
   Serial.print("Animation mode: ");
   Serial.println(animationModeName);
   
@@ -84,14 +82,14 @@ bool loadSettings() {
 // Save settings to storage
 bool saveSettings() {
   // Create a JsonDocument with larger size for animation support
-  StaticJsonDocument<512> doc;
+  JsonDocument doc;
   
   // Set the values in the document
   doc["red"] = red;
   doc["green"] = green;
   doc["blue"] = blue;
-  doc["brightness"] = brightness_Level; // Now 0-255 range
-  doc["mode"] = panelMode;
+  doc["brightness"] = rgbBrightnessLevel; // Now 0-255 range
+  doc["mode"] = rgbPanelMode;
   doc["animation"] = getAnimationName(currentAnimation);
   
   // Open the file for writing
@@ -141,13 +139,13 @@ void saveSettingsIfNeeded() {
     changed = true;
   }
   
-  if (abs(last_brightness - brightness_Level) > 5) { // Changed threshold for 0-255 range
-    last_brightness = brightness_Level;
+  if (abs(last_brightness - rgbBrightnessLevel) > 5) { // Changed threshold for 0-255 range
+    last_brightness = rgbBrightnessLevel;
     changed = true;
   }
   
-  if (last_mode != panelMode) {
-    last_mode = panelMode;
+  if (last_mode != rgbPanelMode) {
+    last_mode = rgbPanelMode;
     changed = true;
   }
   
@@ -174,8 +172,8 @@ void resetSettings() {
   red = 20;
   green = 20;
   blue = 20;
-  brightness_Level = 50; // New default for 0-255 range
-  panelMode = "Auto";
+  rgbBrightnessLevel = 50; // New default for 0-255 range
+  rgbPanelMode = "Auto";
   currentAnimation = STATIC;  // Reset to static mode
   
   saveSettings();

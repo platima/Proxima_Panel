@@ -1,10 +1,17 @@
+// Display.ino for Proxima Arduino Firmware
+// 2025 Platima (https://github.com/platima https://plati.ma)
+// Handles OLED display functions
+
 // Array for cursor position
 byte cursorPosition[5] = {15, 25, 35, 45, 55}; // Added one more position for Reset option
+
 // cursorPosition[cursorIndex]
 byte cursorIndex = 0;
 byte menu_layer = 0;
 
 void menu(){
+  if (!displayAvailable) return; // Skip if no display
+
   switch(menu_layer){
     case 0:
       menuLayer_0();
@@ -65,9 +72,9 @@ void menuLayer_1(){
 
     if(cursorIndex == 3){
       while(digitalRead(btn_up) == HIGH){}
-      brightness_Level += 5; // Increment by 5 for 0-255 range
-      if(brightness_Level > 255){
-         brightness_Level = 255;
+      rgbBrightnessLevel += 5; // Increment by 5 for 0-255 range
+      if(rgbBrightnessLevel > 255){
+         rgbBrightnessLevel = 255;
       }
     }
     delay(20);
@@ -94,11 +101,11 @@ void menuLayer_1(){
 
     if(cursorIndex == 3){
       while(digitalRead(btn_down) == HIGH){}
-      if(brightness_Level > 0){
-         brightness_Level -= 5; // Decrement by 5 for 0-255 range
+      if(rgbBrightnessLevel > 0){
+         rgbBrightnessLevel -= 5; // Decrement by 5 for 0-255 range
       }
-      if(brightness_Level < 0){
-         brightness_Level = 0;
+      if(rgbBrightnessLevel < 0){
+         rgbBrightnessLevel = 0;
       }
     }
     delay(20);     
@@ -126,7 +133,7 @@ void menuLayer_2() {
     if(confirmCursor == 1) { // Yes was selected
       resetSettings();
       // Apply reset settings immediately
-      panelSet(0);
+      rgbPanelSet(0);
     }
     // Return to main menu regardless of choice
     menu_layer = 0;
@@ -153,6 +160,8 @@ void menuLayer_2() {
 }
 
 void display_mode_auto(){
+  if (!displayAvailable) return; // Skip if no display
+
   menu();
   
   // Only draw the regular menu if we're not in reset confirmation
@@ -162,7 +171,7 @@ void display_mode_auto(){
     display.setTextSize(1);             
     display.setTextColor(WHITE);        
     display.setCursor(0,0);             
-    display.println(panelMode);
+    display.println(rgbPanelMode);
   
     if(wifiStatus == true){
       Wifi_connected_animation();
@@ -197,14 +206,14 @@ void display_mode_auto(){
     display.setCursor(10,45);             
     display.println("LUX");
     // Draw brightness bar, scale down for display (255/3 = 85 max length)
-    int brightnessLength = brightness_Level / 3;
+    int brightnessLength = rgbBrightnessLevel / 3;
     display.drawFastHLine(30, 48, brightnessLength, WHITE);
     display.drawFastHLine(30, 49, brightnessLength, WHITE);
     display.drawFastHLine(30, 50, brightnessLength, WHITE);
     
     // Show actual brightness value for clarity
     display.setCursor(75, 45);
-    display.print(brightness_Level);
+    display.print(rgbBrightnessLevel);
     
     // RESET OPTION
     display.setTextSize(1);             

@@ -1,8 +1,6 @@
-// 
-// Animations.ino - LED animation effects
-// For Proxima LED Panel
-// Version 0.2.4
-//
+// Animations.ino for Proxima Arduino Firmware
+// 2025 Platima (https://github.com/platima https://plati.ma)
+// Handles OLED display animations
 
 // Get animation name from enum
 String getAnimationName(AnimationMode mode) {
@@ -79,7 +77,7 @@ void breathingAnimation(float speed) {
   
   // Calculate actual brightness based on the current level
   float intensityFactor = breathingIntensity / 100.0;
-  byte actualBrightness = (byte)(brightness_Level * intensityFactor);
+  byte actualBrightness = (byte)(rgbBrightnessLevel * intensityFactor);
   
   // Apply the brightness and set all pixels to current RGB
   RGBpanel.setBrightness(actualBrightness);
@@ -94,7 +92,7 @@ void rainbowAnimation(float speed) {
   rainbowOffset += (speed * 0.5); // Slower increment for smoother transitions
   if (rainbowOffset >= 256.0) rainbowOffset -= 256.0;
   
-  RGBpanel.setBrightness(brightness_Level);
+  RGBpanel.setBrightness(rgbBrightnessLevel);
   
   for (int i = 0; i < RGBpanel.numPixels(); i++) {
     // Calculate hue - spread the rainbow across all pixels with smooth float values
@@ -114,7 +112,7 @@ void rainbowAnimation(float speed) {
 // Pulse animation - creates a pulse effect that travels through the strip
 void pulseAnimation(float speed) {
   // Clear all pixels first
-  RGBpanel.setBrightness(brightness_Level);
+  RGBpanel.setBrightness(rgbBrightnessLevel);
   for (int i = 0; i < RGBpanel.numPixels(); i++) {
     RGBpanel.setPixelColor(i, 0, 0, 0);
   }
@@ -171,7 +169,7 @@ void colorFadeAnimation(float speed) {
   hsvToRgb((byte)fadeHue, 255, 255, &r, &g, &b);
   
   // Set all pixels to the same color
-  RGBpanel.setBrightness(brightness_Level);
+  RGBpanel.setBrightness(rgbBrightnessLevel);
   for (int i = 0; i < RGBpanel.numPixels(); i++) {
     RGBpanel.setPixelColor(i, r, g, b);
   }

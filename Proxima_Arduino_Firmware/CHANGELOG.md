@@ -56,3 +56,12 @@
 - Fixed web interface to properly handle disabled controls for appropriate animations
 - Improved visual feedback when controls are disabled based on animation mode
 - Added speed control per animation type for better customization
+
+0.2.5 2025-05-11
+- Made display detection automatic
+- Added triple-flash to convey no I2C display detected
+- Updated source headers and related info
+- Removed old AVR code
+- Updated to support ArduinoJson 7
+- Refactored some function names
+- 

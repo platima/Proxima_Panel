@@ -1,4 +1,8 @@
-#define PROXIMA_VERSION "0.2.4"
+// Header.h for Proxima Arduino Firmware
+// 2025 Platima (https://github.com/platima https://plati.ma)
+// Mainly for struct and enum limitations of Arduino
+
+#define PROXIMA_VERSION "0.2.5"
 
 // ESP8266 WiFi Connection
 #include <ESP8266WiFi.h>
@@ -9,7 +13,7 @@
 
 // Storage libraries
 #include <LittleFS.h>             // For file system
-#include <ArduinoJson.h>          // For JSON serialization - install version 6.x
+#include <ArduinoJson.h>          // For JSON serialization
 
 // WS2812B
 #include <Adafruit_NeoPixel.h>
@@ -21,13 +25,15 @@ Adafruit_NeoPixel RGBpanel(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SH110X.h>
-#define OLED_I2C_ADDRESS 0x3C
 #define WHITE 1
 #define BLACK 0
 #define SCREEN_WIDTH 128 
 #define SCREEN_HEIGHT 64 
 #define OLED_RESET     -1 
 Adafruit_SH1106G display = Adafruit_SH1106G(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+bool displayAvailable = false;
+const uint8_t addresses[] = {0x3C, 0x3D, 0x3E, 0x3F}; // Addresses to try in order
+const int numAddresses = sizeof(addresses) / sizeof(addresses[0]);
 
 // Buttons
 #define btn_up D5
@@ -38,12 +44,12 @@ Adafruit_SH1106G display = Adafruit_SH1106G(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, 
 bool wifiStatus = false;
 
 // RGB PANEL SETTINGS
-String panelMode = "Auto";
+String rgbPanelMode = "Auto";
 int red = 20;
 int green = 20;
 int blue = 20;
 // Remove the brightness array - now using 0-255 directly
-int brightness_Level = 50; // Changed to default to a reasonable value (instead of 1)
+int rgbBrightnessLevel = 50; // Changed to default to a reasonable value (instead of 1)
 
 // MENU
 int menuLayer = 0;

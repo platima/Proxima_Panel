@@ -1,8 +1,6 @@
-// 
-// WiFi_Connection.ino - Non-blocking WiFi connection implementation
-// For Proxima LED Panel
-// Version 0.2.0
-//
+// WiFi_Connection.ino for Proxima Arduino Firmware
+// 2025 Platima (https://github.com/platima https://plati.ma)
+// Handles wi-fi connection & portal in non-blocking mode
 
 // WiFi connection states
 enum WiFiConnectionState {
@@ -54,13 +52,16 @@ void startWiFiConnection() {
   wifiConnState = WIFI_CONNECTING;
   wifiLastStateChange = millis();
   
-  // Display connecting animation
-  display.clearDisplay();
-  display.setTextSize(1);
-  display.setTextColor(WHITE);
-  display.setCursor(0, 0);
-  display.println("Connecting to WiFi");
-  display.display();
+  
+  if (displayAvailable) {
+    // Display connecting animation
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setTextColor(WHITE);
+    display.setCursor(0, 0);
+    display.println("Connecting to WiFi");
+    display.display();
+  }
   
   // Begin connection attempt (non-blocking)
   WiFi.begin();
@@ -72,21 +73,24 @@ void handleWiFiConfigPortal() {
     wifiConnState = WIFI_CONFIG_PORTAL;
     wifiLastStateChange = millis();
     
-    // Display config portal information
-    display.clearDisplay();
-    display.setTextSize(1);
-    display.setTextColor(WHITE);
-    display.setCursor(0, 0);
-    display.println("WiFi Setup Mode");
-    display.setCursor(0, 12);
-    display.println("Connect to WiFi:");
-    display.setCursor(0, 24);
-    display.println(apName);
-    display.setCursor(0, 36);
-    display.println("Browse to:");
-    display.setCursor(0, 48);
-    display.println("192.168.4.1");
-    display.display();
+    
+    if (displayAvailable) {
+      // Display config portal information
+      display.clearDisplay();
+      display.setTextSize(1);
+      display.setTextColor(WHITE);
+      display.setCursor(0, 0);
+      display.println("WiFi Setup Mode");
+      display.setCursor(0, 12);
+      display.println("Connect to WiFi:");
+      display.setCursor(0, 24);
+      display.println(apName);
+      display.setCursor(0, 36);
+      display.println("Browse to:");
+      display.setCursor(0, 48);
+      display.println("192.168.4.1");
+      display.display();
+    }
     
     // Start config portal (non-blocking)
     wifiManager.startConfigPortal(apName.c_str());
@@ -126,19 +130,21 @@ void processWiFiConnection() {
           webServerStarted = true;
         }
         
-        // Display connected info
-        display.clearDisplay();
-        display.setTextSize(1);
-        display.setTextColor(WHITE);
-        display.setCursor(0, 0);
-        display.println("Connected to WiFi");
-        display.setCursor(0, 20);
-        display.println("IP: " + WiFi.localIP().toString());
-        display.setCursor(0, 36);
-        display.println("Web Control:");
-        display.setCursor(0, 48);
-        display.println("http://proxima.local");
-        display.display();
+        if (displayAvailable) {
+          // Display connected info
+          display.clearDisplay();
+          display.setTextSize(1);
+          display.setTextColor(WHITE);
+          display.setCursor(0, 0);
+          display.println("Connected to WiFi");
+          display.setCursor(0, 20);
+          display.println("IP: " + WiFi.localIP().toString());
+          display.setCursor(0, 36);
+          display.println("Web Control:");
+          display.setCursor(0, 48);
+          display.println("http://proxima.local");
+          display.display();
+        }
         
         Serial.println("WiFi connected");
         Serial.print("IP address: ");
@@ -173,19 +179,22 @@ void processWiFiConnection() {
           webServerStarted = true;
         }
         
-        // Display connected info
-        display.clearDisplay();
-        display.setTextSize(1);
-        display.setTextColor(WHITE);
-        display.setCursor(0, 0);
-        display.println("Connected to WiFi");
-        display.setCursor(0, 20);
-        display.println("IP: " + WiFi.localIP().toString());
-        display.setCursor(0, 36);
-        display.println("Web Control:");
-        display.setCursor(0, 48);
-        display.println("http://proxima.local");
-        display.display();
+        
+        if (displayAvailable) {
+          // Display connected info
+          display.clearDisplay();
+          display.setTextSize(1);
+          display.setTextColor(WHITE);
+          display.setCursor(0, 0);
+          display.println("Connected to WiFi");
+          display.setCursor(0, 20);
+          display.println("IP: " + WiFi.localIP().toString());
+          display.setCursor(0, 36);
+          display.println("Web Control:");
+          display.setCursor(0, 48);
+          display.println("http://proxima.local");
+          display.display();
+        } 
         
         Serial.println("WiFi connected via portal");
         Serial.print("IP address: ");
@@ -202,15 +211,18 @@ void processWiFiConnection() {
         wifiConnState = WIFI_FAILED;
         wifiLastStateChange = millis();
         
-        // Display timeout message
-        display.clearDisplay();
-        display.setTextSize(1);
-        display.setTextColor(WHITE);
-        display.setCursor(0, 0);
-        display.println("WiFi Setup Failed");
-        display.setCursor(0, 20);
-        display.println("Continue without WiFi");
-        display.display();
+        
+        if (displayAvailable) {
+          // Display timeout message
+          display.clearDisplay();
+          display.setTextSize(1);
+          display.setTextColor(WHITE);
+          display.setCursor(0, 0);
+          display.println("WiFi Setup Failed");
+          display.setCursor(0, 20);
+          display.println("Continue without WiFi");
+          display.display();
+        }
         
         Serial.println("WiFi portal timeout");
         
@@ -249,6 +261,8 @@ void processWiFiConnection() {
 }
 
 void Wifi_connection_animation() {
+  if (!displayAvailable) return; // Skip if no display
+
   // Only update the connection animation, don't redraw the whole screen
   display.fillRect(105, 0, 18, 8, BLACK); // Clear the animation area
   
@@ -268,6 +282,8 @@ void Wifi_connection_animation() {
 }
 
 void Wifi_connected_animation() {
+  if (!displayAvailable) return; // Skip if no display
+
   display.setTextSize(1);             
   display.setTextColor(WHITE);        
   display.setCursor(50, 0);             
@@ -289,22 +305,26 @@ void processWifiOverride() {
   if (digitalRead(btn_up) == HIGH && digitalRead(btn_down) == HIGH) {
     // Wait to see if it's a long press (about 3 seconds)
     unsigned long pressStart = millis();
+    
     while (digitalRead(btn_up) == HIGH && digitalRead(btn_down) == HIGH) {
       // Show feedback on display
-      display.clearDisplay();
-      display.setTextSize(1);
-      display.setTextColor(WHITE);
-      display.setCursor(0, 0);
-      display.println("Hold buttons for");
-      display.setCursor(0, 12);
-      display.println("WiFi Setup...");
-      display.setCursor(0, 30);
-      // Show progress bar
-      int progress = ((millis() - pressStart) * 100) / 3000; // 3 seconds
-      progress = min(100, progress);
-      display.drawRect(0, 40, 100, 10, WHITE);
-      display.fillRect(0, 40, progress, 10, WHITE);
-      display.display();
+      if (displayAvailable) {
+        display.clearDisplay();
+        display.setTextSize(1);
+        display.setTextColor(WHITE);
+        display.setCursor(0, 0);
+        display.println("Hold buttons for");
+        display.setCursor(0, 12);
+        display.println("WiFi Setup...");
+        display.setCursor(0, 30);
+
+        // Show progress bar
+        int progress = ((millis() - pressStart) * 100) / 3000; // 3 seconds
+        progress = min(100, progress);
+        display.drawRect(0, 40, 100, 10, WHITE);
+        display.fillRect(0, 40, progress, 10, WHITE);
+        display.display();
+      }
       
       if (millis() - pressStart > 3000) {
         // Long press detected, start config portal

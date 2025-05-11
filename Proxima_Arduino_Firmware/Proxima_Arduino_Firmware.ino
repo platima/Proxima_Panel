@@ -1,6 +1,6 @@
 //
 // Proxima LED Panel
-// Version 0.2.3
+// Version 0.2.5
 // Based on original work of Objex Proxima Alpha by Salvatore Raccardi
 // Start date: 2025-05-05
 // New author: Platima
@@ -35,18 +35,35 @@ void setup() {
   pinMode(btn_down, INPUT);
 
   // WS2812B INIT
-  ws2812bInit();
+  rgbPanelInit();
   
-  // DISPLAY INIT
+  // DISPLAY INIT - now with scanning
   delay(250); // wait for the OLED to power up
-  display.begin(OLED_I2C_ADDRESS, true);
+  initDisplayWithScan();
+
+  // If no display, blink the RGB panel to indicate status
+  if (!displayAvailable) {
+    for (int i = 0; i < 3; i++) {
+      RGBpanel.fill(RGBpanel.Color(255, 255, 255), 0, LED_COUNT);
+      RGBpanel.show();
+      delay(200);
+      RGBpanel.fill(RGBpanel.Color(0, 0, 0), 0, LED_COUNT);
+      RGBpanel.show();
+      delay(200);
+    }
+  }
+  
+  // If display is not available, we'll continue without it
+  if (!displayAvailable) {
+    Serial.println("Running in WiFi-only mode (no display)");
+  }
   
   // Non-blocking WiFi setup
   setupWiFi();
   
   // Set initial panel state
   if (currentAnimation == STATIC) {
-    panelSet(0);
+    rgbPanelSet(0);
   }
 }
 
@@ -67,7 +84,7 @@ void loop() {
   
   // Continue with normal operation regardless of WiFi status
   if (currentAnimation == STATIC) {
-    processRGBPanel();
+    rgbPanelProcess();
   }
   
   // Check if settings need to be saved (will only save if values changed)

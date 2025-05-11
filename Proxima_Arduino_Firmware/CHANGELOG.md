@@ -55,7 +55,7 @@
 - Enhanced OLED display to show actual brightness value (0-255)
 - Fixed web interface to properly handle disabled controls for appropriate animations
 - Improved visual feedback when controls are disabled based on animation mode
-- Added speed control per animation type for better customization
+- Added speed control per animation type for better customisation
 
 0.2.5 2025-05-11
 - Made display detection automatic
@@ -64,4 +64,8 @@
 - Removed old AVR code
 - Updated to support ArduinoJson 7
 - Refactored some function names
-- 
+
+0.2.6 2025-05-11
+- Fixed physical button responsiveness - OLED display and LEDs now update while buttons are held
+- RGB and brightness values change in real-time as buttons are pressed, providing immediate visual feedback
+- Improved overall user experience when using physical controls

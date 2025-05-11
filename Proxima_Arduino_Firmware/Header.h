@@ -2,7 +2,7 @@
 // 2025 Platima (https://github.com/platima https://plati.ma)
 // Mainly for struct and enum limitations of Arduino
 
-#define PROXIMA_VERSION "0.2.5"
+#define PROXIMA_VERSION "0.2.6"
 
 // ESP8266 WiFi Connection
 #include <ESP8266WiFi.h>

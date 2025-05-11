@@ -77,6 +77,12 @@ void menuLayer_1(){
          rgbBrightnessLevel = 255;
       }
     }
+    
+    // Update display and LEDs while button is held
+    if (currentAnimation == STATIC) {
+      rgbPanelSet(0); // Update LEDs immediately
+    }
+    display_mode_auto(); // Update display immediately
     delay(20);
   }
 
@@ -108,6 +114,12 @@ void menuLayer_1(){
          rgbBrightnessLevel = 0;
       }
     }
+    
+    // Update display and LEDs while button is held
+    if (currentAnimation == STATIC) {
+      rgbPanelSet(0); // Update LEDs immediately
+    }
+    display_mode_auto(); // Update display immediately
     delay(20);     
   }
 

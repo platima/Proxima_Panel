@@ -100,6 +100,7 @@ void handleWiFiConfigPortal() {
 void processWiFiConnection() {
   // Handle animation timing
   unsigned long currentMillis = millis();
+
   if (currentMillis - lastAnimationTime >= ANIMATION_INTERVAL) {
     lastAnimationTime = currentMillis;
     

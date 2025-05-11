@@ -36,6 +36,7 @@ bool loadSettings() {
   
   // Allocate a JsonDocument for animation support
   JsonDocument doc;
+  doc.to<JsonObject>(); // Preallocate as object type
   
   // Deserialize the JSON document
   DeserializationError error = deserializeJson(doc, file);
@@ -83,6 +84,7 @@ bool loadSettings() {
 bool saveSettings() {
   // Create a JsonDocument with larger size for animation support
   JsonDocument doc;
+  doc.to<JsonObject>(); // Preallocate as object type 
   
   // Set the values in the document
   doc["red"] = red;

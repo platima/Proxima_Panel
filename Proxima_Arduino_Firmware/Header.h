@@ -38,7 +38,11 @@ const int numAddresses = sizeof(addresses) / sizeof(addresses[0]);
 // Buttons
 #define btn_up D5
 #define btn_enter D6
-#define btn_down D0 
+#define btn_down D0
+/*#include <Bounce2.h>
+Bounce upButton = Bounce();
+Bounce downButton = Bounce();
+Bounce enterButton = Bounce();*/
 
 // WIFI STATUS
 bool wifiStatus = false;

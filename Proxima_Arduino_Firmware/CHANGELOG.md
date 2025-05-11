@@ -41,4 +41,18 @@
 - Enhanced WiFi connection handling with auto-reconnection
 - Ensured all settings (including animation mode) now persist across restarts
 - Updated layout for mobile-responsiveness
-- Added JSON-based settings serialization for future extensibility
+- Added JSON-based settings serialisation for future extensibility
+
+0.2.4 2025-05-10
+- Fixed brightness system to use full 0-255 range (no longer limited to 0-9)
+- Implemented modular animation system with configuration per animation
+- Added RGB control based on animation type (RGB controls disabled for Rainbow/Color Fade)
+- Fixed breathing animation to properly display colors
+- Improved animation smoothness with float-based calculations
+- Added live updates to web interface - sliders now update immediately as dragged
+- Improved pulse animation with smoother transitions
+- Added debouncing to web interface saves for better performance
+- Enhanced OLED display to show actual brightness value (0-255)
+- Fixed web interface to properly handle disabled controls for appropriate animations
+- Improved visual feedback when controls are disabled based on animation mode
+- Added speed control per animation type for better customization

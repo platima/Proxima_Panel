@@ -1,7 +1,7 @@
 // 
 // WebInterface.ino - Web server for remote control
 // For Proxima LED Panel
-// Version 0.2.0
+// Version 0.2.4
 //
 
 #include <ESP8266WebServer.h>
@@ -114,6 +114,9 @@ const char* htmlTemplate = R"rawliteral(
       font-style: italic;
       color: #0f0;
     }
+    .brightness-control {
+      /* Marker class for brightness control */
+    }
   </style>
 </head>
 <body>
@@ -129,25 +132,25 @@ const char* htmlTemplate = R"rawliteral(
   <div class="slider-container">
     <span class="slider-label" id="redLabel" onclick="toggleInput('red')">Red: <span id="redValue">%RED%</span></span>
     <input type="text" id="redInput" class="label-input" value="%RED%" onblur="updateFromInput('red')" onkeypress="handleEnter(event, 'red')">
-    <input type="range" min="0" max="255" value="%RED%" id="redSlider" oninput="updateValue('red')" onchange="saveSettings()">
+    <input type="range" min="0" max="255" value="%RED%" id="redSlider" onchange="debouncedSaveSettings()">
   </div>
   
   <div class="slider-container">
     <span class="slider-label" id="greenLabel" onclick="toggleInput('green')">Green: <span id="greenValue">%GREEN%</span></span>
     <input type="text" id="greenInput" class="label-input" value="%GREEN%" onblur="updateFromInput('green')" onkeypress="handleEnter(event, 'green')">
-    <input type="range" min="0" max="255" value="%GREEN%" id="greenSlider" oninput="updateValue('green')" onchange="saveSettings()">
+    <input type="range" min="0" max="255" value="%GREEN%" id="greenSlider" onchange="debouncedSaveSettings()">
   </div>
   
   <div class="slider-container">
     <span class="slider-label" id="blueLabel" onclick="toggleInput('blue')">Blue: <span id="blueValue">%BLUE%</span></span>
     <input type="text" id="blueInput" class="label-input" value="%BLUE%" onblur="updateFromInput('blue')" onkeypress="handleEnter(event, 'blue')">
-    <input type="range" min="0" max="255" value="%BLUE%" id="blueSlider" oninput="updateValue('blue')" onchange="saveSettings()">
+    <input type="range" min="0" max="255" value="%BLUE%" id="blueSlider" onchange="debouncedSaveSettings()">
   </div>
   
-  <div class="slider-container">
+  <div class="slider-container brightness-control">
     <span class="slider-label" id="brightnessLabel" onclick="toggleInput('brightness')">Brightness: <span id="brightnessValue">%BRIGHTNESS%</span></span>
-    <input type="text" id="brightnessInput" class="label-input" value="%BRIGHTNESS_RAW%" onblur="updateFromInput('brightness')" onkeypress="handleEnter(event, 'brightness')">
-    <input type="range" min="0" max="255" value="%BRIGHTNESS_RAW%" id="brightnessSlider" oninput="updateValue('brightness')" onchange="saveSettings()">
+    <input type="text" id="brightnessInput" class="label-input" value="%BRIGHTNESS%" onblur="updateFromInput('brightness')" onkeypress="handleEnter(event, 'brightness')">
+    <input type="range" min="0" max="255" value="%BRIGHTNESS%" id="brightnessSlider" onchange="debouncedSaveSettings()">
   </div>
   
   <div class="mode-controls">
@@ -166,6 +169,16 @@ const char* htmlTemplate = R"rawliteral(
   <script>
     let currentMode = 'static';
     let isUpdating = false;
+    let updateTimer = null;
+    
+    // Animation RGB control mapping
+    const animationRGBControl = {
+      'static': true,
+      'breathing': true,
+      'rainbow': false,
+      'pulse': true,
+      'colorFade': false
+    };
     
     function toggleInput(type) {
       var label = document.getElementById(type + 'Label');
@@ -194,21 +207,14 @@ const char* htmlTemplate = R"rawliteral(
       var value = parseInt(input.value);
       
       // Validate input
-      if (type === 'brightness') {
-        if (value < 0 || value > 255) {
-          value = Math.max(0, Math.min(255, value));
-          input.value = value;
-        }
-      } else {
-        if (value < 0 || value > 255) {
-          value = Math.max(0, Math.min(255, value));
-          input.value = value;
-        }
+      if (value < 0 || value > 255) {
+        value = Math.max(0, Math.min(255, value));
+        input.value = value;
       }
       
       slider.value = value;
       updateValue(type);
-      saveSettings();
+      debouncedSaveSettings();
       
       // Hide input, show label
       input.style.display = 'none';
@@ -222,14 +228,30 @@ const char* htmlTemplate = R"rawliteral(
       var value = parseInt(slider.value);
       
       // Update the label
-      document.getElementById(type + 'Value').textContent = type === 'brightness' ? 
-        Math.round((value / 255) * 9) : value;
+      document.getElementById(type + 'Value').textContent = value;
       
       // Update the input field
       document.getElementById(type + 'Input').value = value;
       
       // Update color preview and hex
       updateColor();
+      
+      // Send immediate live update for visual feedback
+      if (currentMode === 'static' || 
+          (currentMode === 'animation' && document.getElementById('animationSelect').value === 'pulse')) {
+        debouncedSaveSettings();
+      }
+    }
+    
+    // Debounced settings save for smooth slider dragging
+    function debouncedSaveSettings() {
+      if (updateTimer) {
+        clearTimeout(updateTimer);
+      }
+      
+      updateTimer = setTimeout(function() {
+        saveSettings();
+      }, 100); // 100ms delay to batch updates
     }
     
     function updateColor() {
@@ -263,8 +285,31 @@ const char* htmlTemplate = R"rawliteral(
         updateValue('green');
         updateValue('blue');
         
-        saveSettings();
+        debouncedSaveSettings();
       }
+    }
+    
+    function updateRGBControlVisibility() {
+      var currentAnimation = document.getElementById('animationSelect').value;
+      var allowRGB = currentMode === 'static' || 
+                     (currentMode === 'animation' && animationRGBControl[currentAnimation]);
+      
+      // Show/hide RGB controls
+      var rgbControls = document.querySelectorAll('.slider-container:not(.brightness-control)');
+      rgbControls.forEach(function(control) {
+        control.style.opacity = allowRGB ? '1' : '0.5';
+        var slider = control.querySelector('input[type="range"]');
+        var input = control.querySelector('input[type="text"]');
+        var label = control.querySelector('.slider-label');
+        if (slider) slider.disabled = !allowRGB;
+        if (input) input.disabled = !allowRGB;
+        if (label) label.style.pointerEvents = allowRGB ? 'auto' : 'none';
+      });
+      
+      // Update hex input
+      var hexInput = document.getElementById('hexInput');
+      hexInput.disabled = !allowRGB;
+      hexInput.style.opacity = allowRGB ? '1' : '0.5';
     }
     
     function setMode(mode) {
@@ -283,6 +328,7 @@ const char* htmlTemplate = R"rawliteral(
         animationSelect.style.display = 'inline-block';
       }
       
+      updateRGBControlVisibility();
       saveMode();
     }
     
@@ -318,6 +364,7 @@ const char* htmlTemplate = R"rawliteral(
       xhttp.onreadystatechange = function() {
         if (this.readyState == 4 && this.status == 200) {
           showStatus("Mode changed");
+          updateRGBControlVisibility();
         }
       };
       xhttp.open("GET", "/setMode?mode=" + mode + "&animation=" + animation, true);
@@ -339,10 +386,17 @@ const char* htmlTemplate = R"rawliteral(
       }
     };
     
+    // Add oninput handlers for live updates
+    document.getElementById('redSlider').oninput = function() { updateValue('red'); };
+    document.getElementById('greenSlider').oninput = function() { updateValue('green'); };
+    document.getElementById('blueSlider').oninput = function() { updateValue('blue'); };
+    document.getElementById('brightnessSlider').oninput = function() { updateValue('brightness'); };
+    
     // Initialize
     updateColor();
     setMode('%MODE%');
     document.getElementById('animationSelect').value = '%ANIMATION%';
+    updateRGBControlVisibility();
   </script>
 </body>
 </html>
@@ -387,8 +441,7 @@ void handleRoot() {
   html.replace("%RED%", String(red));
   html.replace("%GREEN%", String(green));
   html.replace("%BLUE%", String(blue));
-  html.replace("%BRIGHTNESS%", String(brightness_Level));
-  html.replace("%BRIGHTNESS_RAW%", String(map(brightness_Level, 0, 9, 0, 255)));
+  html.replace("%BRIGHTNESS%", String(brightness_Level)); // Now 0-255 range
   
   // Calculate hex color
   String hexColor = "";
@@ -430,11 +483,10 @@ void handleSave() {
   }
   
   if (server.hasArg("br")) {
-    int brightnessRaw = server.arg("br").toInt();
-    brightness_Level = map(brightnessRaw, 0, 255, 0, 9);
+    brightness_Level = server.arg("br").toInt(); // Now directly 0-255
     // Ensure brightness is within valid range
     if (brightness_Level < 0) brightness_Level = 0;
-    if (brightness_Level > 9) brightness_Level = 9;
+    if (brightness_Level > 255) brightness_Level = 255;
   }
   
   // Apply settings immediately

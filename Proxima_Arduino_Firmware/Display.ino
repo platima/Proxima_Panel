@@ -65,9 +65,9 @@ void menuLayer_1(){
 
     if(cursorIndex == 3){
       while(digitalRead(btn_up) == HIGH){}
-      brightness_Level++;
-      if(brightness_Level > 9){
-         brightness_Level = 9;
+      brightness_Level += 5; // Increment by 5 for 0-255 range
+      if(brightness_Level > 255){
+         brightness_Level = 255;
       }
     }
     delay(20);
@@ -95,7 +95,10 @@ void menuLayer_1(){
     if(cursorIndex == 3){
       while(digitalRead(btn_down) == HIGH){}
       if(brightness_Level > 0){
-         brightness_Level--;
+         brightness_Level -= 5; // Decrement by 5 for 0-255 range
+      }
+      if(brightness_Level < 0){
+         brightness_Level = 0;
       }
     }
     delay(20);     
@@ -188,14 +191,20 @@ void display_mode_auto(){
     display.setCursor(10,35);             
     display.println("B");
     display.drawFastHLine(20, 38, (blue / 3), WHITE);
-    // BRIGHTNESS
+    // BRIGHTNESS - Now shows 0-255 range
     display.setTextSize(1);             
     display.setTextColor(WHITE);        
     display.setCursor(10,45);             
     display.println("LUX");
-    display.drawFastHLine(30, 48, (brightness_Level * 7), WHITE);
-    display.drawFastHLine(30, 49, (brightness_Level * 7), WHITE);
-    display.drawFastHLine(30, 50, (brightness_Level * 7), WHITE);
+    // Draw brightness bar, scale down for display (255/3 = 85 max length)
+    int brightnessLength = brightness_Level / 3;
+    display.drawFastHLine(30, 48, brightnessLength, WHITE);
+    display.drawFastHLine(30, 49, brightnessLength, WHITE);
+    display.drawFastHLine(30, 50, brightnessLength, WHITE);
+    
+    // Show actual brightness value for clarity
+    display.setCursor(75, 45);
+    display.print(brightness_Level);
     
     // RESET OPTION
     display.setTextSize(1);             

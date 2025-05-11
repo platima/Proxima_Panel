@@ -20,7 +20,7 @@
 
 void setup() {
   Serial.begin(9600);
-  Serial.println("\nProxima LED Panel v0.2.0 Starting...");
+  Serial.println((String)"Proxima LED Panel " + PROXIMA_VERSION + (String)" Starting...");
   
   // Initialize storage first
   Serial.println("Initializing storage...");
@@ -39,7 +39,7 @@ void setup() {
   
   // DISPLAY INIT
   delay(250); // wait for the OLED to power up
-  display.begin(i2c_Address, true);
+  display.begin(OLED_I2C_ADDRESS, true);
   
   // Non-blocking WiFi setup
   setupWiFi();

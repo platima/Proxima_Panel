@@ -1,3 +1,5 @@
+#define PROXIMA_VERSION "0.2.4"
+
 // ESP8266 WiFi Connection
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
@@ -11,30 +13,23 @@
 
 // WS2812B
 #include <Adafruit_NeoPixel.h>
-#ifdef __AVR__
- #include <avr/power.h>
-#endif
+#define LED_PIN D7
+#define LED_COUNT 40
+Adafruit_NeoPixel RGBpanel(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 
 // DISPLAY
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SH110X.h>
-#define i2c_Address 0x3C
+#define OLED_I2C_ADDRESS 0x3C
 #define WHITE 1
 #define BLACK 0
-
 #define SCREEN_WIDTH 128 
 #define SCREEN_HEIGHT 64 
-
 #define OLED_RESET     -1 
 Adafruit_SH1106G display = Adafruit_SH1106G(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-// WS2812B
-#define LED_PIN D7
-#define LED_COUNT 40
-Adafruit_NeoPixel RGBpanel(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
-
-// BTN
+// Buttons
 #define btn_up D5
 #define btn_enter D6
 #define btn_down D0 
@@ -47,8 +42,8 @@ String panelMode = "Auto";
 int red = 20;
 int green = 20;
 int blue = 20;
-int brightness[10] = {0, 20, 50, 80, 100, 120, 150, 180, 200, 255};
-int brightness_Level = 1;
+// Remove the brightness array - now using 0-255 directly
+int brightness_Level = 50; // Changed to default to a reasonable value (instead of 1)
 
 // MENU
 int menuLayer = 0;
@@ -63,13 +58,52 @@ enum AnimationMode {
 };
 
 // Current animation mode
-extern AnimationMode currentAnimation = STATIC;
+AnimationMode currentAnimation = STATIC;
 
 // Animation functions - declared here to be used in main file
 void processAnimations();
 String getAnimationName(AnimationMode mode);
 AnimationMode getAnimationByName(String name);
 
+// Animation timing variables
+unsigned long lastAnimationUpdate = 0;
+unsigned long animationInterval = 30; // Default 30ms (about 33fps)
+
+// Animation parameters
+float breathingIntensity = 0.0;
+float breathingDirection = 1.0; // 1.0 = increasing, -1.0 = decreasing
+float rainbowOffset = 0.0;
+float fadeHue = 0.0;
+float pulseStep = 0.0;
+float pulseDirection = 1.0;
+
+// Animation configuration structure
+struct AnimationConfig {
+  const char* name;
+  bool allowRGBControl;
+  bool allowBrightnessControl;
+  float speed; // Speed multiplier for the animation
+};
+
+// Define animation configurations
+const AnimationConfig animationConfigs[] = {
+  {"Static", true, true, 1.0},
+  {"Breathing", true, true, 0.5},
+  {"Rainbow", false, true, 1.0},
+  {"Pulse", true, true, 0.8},
+  {"Color Fade", false, true, 0.3}
+};
+
+// Animation names for display and storage (maintain compatibility)
+const char* animationNames[] = {
+  "Static",
+  "Breathing",
+  "Rainbow",
+  "Pulse",
+  "Color Fade"
+};
+
+// Stored OLED images
 const unsigned char bitmap_WIFI1[] PROGMEM = {
     0x00, 0x00, 0x00, 
     0x00, 0x00, 0x00, 

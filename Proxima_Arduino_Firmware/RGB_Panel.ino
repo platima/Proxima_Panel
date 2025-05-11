@@ -6,7 +6,8 @@ void processRGBPanel(){
 }
 
 void panelSet(byte wait){
-  RGBpanel.setBrightness(brightness[brightness_Level]);
+  // Use brightness_Level directly (0-255 range)
+  RGBpanel.setBrightness(brightness_Level);
   for(byte index = 0; index < RGBpanel.numPixels(); index++){
     RGBpanel.setPixelColor(index, red, green, blue);
     RGBpanel.show();                          

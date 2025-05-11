@@ -1,7 +1,7 @@
 // 
 // Storage.ino - Persistent storage implementation
 // For Proxima LED Panel
-// Version 0.2.0
+// Version 0.2.4
 //
 
 #include <LittleFS.h>
@@ -52,7 +52,7 @@ bool loadSettings() {
   red = doc["red"] | 20;  // Default to 20 if not present
   green = doc["green"] | 20;
   blue = doc["blue"] | 20;
-  brightness_Level = doc["brightness"] | 1;
+  brightness_Level = doc["brightness"] | 50; // Now 0-255 range, default to 50
   panelMode = doc["mode"] | "Auto";
   
   // Load animation mode
@@ -90,7 +90,7 @@ bool saveSettings() {
   doc["red"] = red;
   doc["green"] = green;
   doc["blue"] = blue;
-  doc["brightness"] = brightness_Level;
+  doc["brightness"] = brightness_Level; // Now 0-255 range
   doc["mode"] = panelMode;
   doc["animation"] = getAnimationName(currentAnimation);
   
@@ -141,7 +141,7 @@ void saveSettingsIfNeeded() {
     changed = true;
   }
   
-  if (last_brightness != brightness_Level) {
+  if (abs(last_brightness - brightness_Level) > 5) { // Changed threshold for 0-255 range
     last_brightness = brightness_Level;
     changed = true;
   }
@@ -174,7 +174,7 @@ void resetSettings() {
   red = 20;
   green = 20;
   blue = 20;
-  brightness_Level = 1;
+  brightness_Level = 50; // New default for 0-255 range
   panelMode = "Auto";
   currentAnimation = STATIC;  // Reset to static mode
   

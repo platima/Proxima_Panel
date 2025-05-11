@@ -1,29 +1,8 @@
 // 
 // Animations.ino - LED animation effects
 // For Proxima LED Panel
-// Version 0.2.0
+// Version 0.2.4
 //
-
-// Animation timing variables
-unsigned long lastAnimationUpdate = 0;
-unsigned long animationInterval = 30; // Default 30ms (about 33fps)
-
-// Animation parameters
-byte breathingIntensity = 0;
-byte breathingDirection = 0; // 0 = increasing, 1 = decreasing
-byte rainbowOffset = 0;
-byte fadeHue = 0;
-byte pulseStep = 0;
-byte pulseDirection = 0;
-
-// Animation names for display and storage
-const char* animationNames[] = {
-  "Static",
-  "Breathing",
-  "Rainbow",
-  "Pulse",
-  "Color Fade"
-};
 
 // Get animation name from enum
 String getAnimationName(AnimationMode mode) {
@@ -38,6 +17,11 @@ AnimationMode getAnimationByName(String name) {
     }
   }
   return STATIC; // Default if not found
+}
+
+// Get animation configuration
+const AnimationConfig& getAnimationConfig(AnimationMode mode) {
+  return animationConfigs[mode];
 }
 
 // Process the current animation
@@ -56,19 +40,22 @@ void processAnimations() {
   // Update animation timestamp
   lastAnimationUpdate = currentMillis;
   
+  // Apply speed multiplier from animation config
+  float speedMultiplier = animationConfigs[currentAnimation].speed;
+  
   // Process the current animation
   switch (currentAnimation) {
     case BREATHING:
-      breathingAnimation();
+      breathingAnimation(speedMultiplier);
       break;
     case RAINBOW:
-      rainbowAnimation();
+      rainbowAnimation(speedMultiplier);
       break;
     case PULSE:
-      pulseAnimation();
+      pulseAnimation(speedMultiplier);
       break;
     case COLOR_FADE:
-      colorFadeAnimation();
+      colorFadeAnimation(speedMultiplier);
       break;
     default:
       // Static or unknown - do nothing
@@ -77,41 +64,45 @@ void processAnimations() {
 }
 
 // Breathing animation - fades LED brightness up and down
-void breathingAnimation() {
-  // Update breathing intensity
-  if (breathingDirection == 0) {
-    // Increasing
-    breathingIntensity++;
-    if (breathingIntensity >= 100) {
-      breathingDirection = 1;
-    }
-  } else {
-    // Decreasing
-    breathingIntensity--;
-    if (breathingIntensity <= 1) {
-      breathingDirection = 0;
-    }
+void breathingAnimation(float speed) {
+  // Update breathing intensity with smooth float values
+  breathingIntensity += (breathingDirection * speed * 2.0);
+  
+  // Check boundaries and reverse direction
+  if (breathingIntensity >= 100.0) {
+    breathingIntensity = 100.0;
+    breathingDirection = -1.0;
+  } else if (breathingIntensity <= 0.0) {
+    breathingIntensity = 0.0;
+    breathingDirection = 1.0;
   }
   
   // Calculate actual brightness based on the current level
-  int actualBrightness = map(breathingIntensity, 0, 100, 5, brightness[brightness_Level]);
+  float intensityFactor = breathingIntensity / 100.0;
+  byte actualBrightness = (byte)(brightness_Level * intensityFactor);
   
-  // Apply the brightness
+  // Apply the brightness and set all pixels to current RGB
   RGBpanel.setBrightness(actualBrightness);
+  for (int i = 0; i < RGBpanel.numPixels(); i++) {
+    RGBpanel.setPixelColor(i, red, green, blue);
+  }
   RGBpanel.show();
 }
 
-// Rainbow animation - cycles through all colors
-void rainbowAnimation() {
-  rainbowOffset++;
+// Rainbow animation - cycles through all colors with smooth transitions
+void rainbowAnimation(float speed) {
+  rainbowOffset += (speed * 0.5); // Slower increment for smoother transitions
+  if (rainbowOffset >= 256.0) rainbowOffset -= 256.0;
+  
+  RGBpanel.setBrightness(brightness_Level);
   
   for (int i = 0; i < RGBpanel.numPixels(); i++) {
-    // Calculate hue - spread the rainbow across all pixels
-    int pixelHue = (i * 256 / RGBpanel.numPixels() + rainbowOffset) & 255;
+    // Calculate hue - spread the rainbow across all pixels with smooth float values
+    float pixelHue = fmod((i * 256.0 / RGBpanel.numPixels() + rainbowOffset), 256.0);
     
     // Convert HSV to RGB
     byte r, g, b;
-    hsvToRgb(pixelHue, 255, 255, &r, &g, &b);
+    hsvToRgb((byte)pixelHue, 255, 255, &r, &g, &b);
     
     // Set the pixel color
     RGBpanel.setPixelColor(i, r, g, b);
@@ -121,26 +112,42 @@ void rainbowAnimation() {
 }
 
 // Pulse animation - creates a pulse effect that travels through the strip
-void pulseAnimation() {
-  // Clear all pixels
+void pulseAnimation(float speed) {
+  // Clear all pixels first
+  RGBpanel.setBrightness(brightness_Level);
   for (int i = 0; i < RGBpanel.numPixels(); i++) {
     RGBpanel.setPixelColor(i, 0, 0, 0);
   }
   
+  // Update pulse position with smooth float values
+  pulseStep += (pulseDirection * speed * 2.0);
+  
+  // Check boundaries and reverse direction
+  if (pulseStep >= 100.0) {
+    pulseStep = 100.0;
+    pulseDirection = -1.0;
+  } else if (pulseStep <= 0.0) {
+    pulseStep = 0.0;
+    pulseDirection = 1.0;
+  }
+  
   // Calculate pulse position and width
-  int pulseCenter = map(pulseStep, 0, 100, -5, RGBpanel.numPixels() + 5);
-  const int pulseWidth = 7; // Width of the pulse
+  float pulseCenter = map(pulseStep, 0.0, 100.0, -5.0, RGBpanel.numPixels() + 5.0);
+  const float pulseWidth = 7.0; // Width of the pulse
   
   // Draw the pulse
-  for (int i = pulseCenter - pulseWidth; i <= pulseCenter + pulseWidth; i++) {
-    // Skip pixels outside the strip
-    if (i < 0 || i >= RGBpanel.numPixels()) {
+  for (int i = 0; i < RGBpanel.numPixels(); i++) {
+    // Calculate distance from center
+    float distance = abs(i - pulseCenter);
+    
+    // Skip pixels too far from center
+    if (distance > pulseWidth) {
       continue;
     }
     
     // Calculate intensity based on distance from center
-    int distance = abs(i - pulseCenter);
-    byte intensity = 255 - map(distance, 0, pulseWidth, 0, 255);
+    float falloff = 1.0 - (distance / pulseWidth);
+    byte intensity = (byte)(255 * falloff);
     
     // Calculate color with the current RGB values but adjusted intensity
     byte r = (red * intensity) / 255;
@@ -151,33 +158,20 @@ void pulseAnimation() {
     RGBpanel.setPixelColor(i, r, g, b);
   }
   
-  // Update pulse position
-  if (pulseDirection == 0) {
-    // Moving forward
-    pulseStep++;
-    if (pulseStep >= 100) {
-      pulseDirection = 1;
-    }
-  } else {
-    // Moving backward
-    pulseStep--;
-    if (pulseStep <= 0) {
-      pulseDirection = 0;
-    }
-  }
-  
   RGBpanel.show();
 }
 
 // Color fade animation - slowly fades between colors in the spectrum
-void colorFadeAnimation() {
-  fadeHue++;
+void colorFadeAnimation(float speed) {
+  fadeHue += (speed * 0.3); // Even slower increment for smoother color transitions
+  if (fadeHue >= 256.0) fadeHue -= 256.0;
   
   // Convert HSV to RGB
   byte r, g, b;
-  hsvToRgb(fadeHue, 255, 255, &r, &g, &b);
+  hsvToRgb((byte)fadeHue, 255, 255, &r, &g, &b);
   
   // Set all pixels to the same color
+  RGBpanel.setBrightness(brightness_Level);
   for (int i = 0; i < RGBpanel.numPixels(); i++) {
     RGBpanel.setPixelColor(i, r, g, b);
   }
@@ -210,13 +204,3 @@ void hsvToRgb(byte h, byte s, byte v, byte *r, byte *g, byte *b) {
     default: *r = v; *g = p; *b = q; break;
   }
 }
-
-// Update Storage.ino functions to save/load animation mode
-// These functions should be copied to Storage.ino
-
-// Add to loadSettings() function:
-// String animationModeName = doc["animation"] | "Static";
-// currentAnimation = getAnimationByName(animationModeName);
-
-// Add to saveSettings() function:
-// doc["animation"] = animationNames[currentAnimation];

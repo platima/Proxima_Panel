@@ -7,13 +7,6 @@ void rgbPanelInit() {
   RGBpanel.show();  
 }  
 
-void rgbPanelProcess() {
-  if(rgbPanelMode == "Auto"){
-      rgbPanelSet(0);
-      display_mode_auto();
-  }
-}
-
 void rgbPanelSet(byte wait) {
   RGBpanel.setBrightness(rgbBrightnessLevel);
 
@@ -21,6 +14,13 @@ void rgbPanelSet(byte wait) {
     RGBpanel.setPixelColor(index, red, green, blue);
   }
 
-  RGBpanel.show();                          
-  delay(wait);
+  RGBpanel.show();
+  
+  // Non-blocking delay replacement
+  if (wait > 0) {
+    unsigned long delayStart = millis();
+    while (millis() - delayStart < wait) {
+      ESP.wdtFeed(); // Feed watchdog during wait
+    }
+  }
 }

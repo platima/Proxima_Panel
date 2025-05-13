@@ -1,6 +1,6 @@
 //
 // Proxima LED Panel
-// Version 0.2.6
+// Version 0.2.8
 // Based on original work of Objex Proxima Alpha by Salvatore Raccardi
 // Start date: 2025-05-05
 // New author: Platima
@@ -22,6 +22,9 @@ void setup() {
   Serial.begin(9600);
   Serial.println((String)"Proxima LED Panel " + PROXIMA_VERSION + (String)" Starting...");
   
+  // Enable watchdog timer - 8 second timeout
+  ESP.wdtEnable(8000);
+  
   // Initialize storage first
   Serial.println("Initializing storage...");
   initStorage();
@@ -29,16 +32,21 @@ void setup() {
   // Load settings
   loadSettings();
   
-  // BTNS INIT
-  pinMode(btn_up, INPUT);
-  pinMode(btn_enter, INPUT);
-  pinMode(btn_down, INPUT);
+  // Initialize Bounce2 buttons
+  upButton.attach(btn_up, INPUT);
+  downButton.attach(btn_down, INPUT);
+  enterButton.attach(btn_enter, INPUT);
+  
+  // Set debounce intervals
+  upButton.interval(50);
+  downButton.interval(50);
+  enterButton.interval(50);
 
   // WS2812B INIT
   rgbPanelInit();
   
   // DISPLAY INIT - now with scanning
-  delay(250); // wait for the OLED to power up
+  unsigned long displayInitStart = millis();
   initDisplayWithScan();
 
   // If no display, blink the RGB panel to indicate status
@@ -46,10 +54,16 @@ void setup() {
     for (int i = 0; i < 3; i++) {
       RGBpanel.fill(RGBpanel.Color(255, 255, 255), 0, LED_COUNT);
       RGBpanel.show();
-      delay(200);
+      unsigned long flashStart = millis();
+      while (millis() - flashStart < 200) {
+        ESP.wdtFeed(); // Feed watchdog during flash
+      }
       RGBpanel.fill(RGBpanel.Color(0, 0, 0), 0, LED_COUNT);
       RGBpanel.show();
-      delay(200);
+      flashStart = millis();
+      while (millis() - flashStart < 200) {
+        ESP.wdtFeed(); // Feed watchdog during pause
+      }
     }
   }
   
@@ -65,9 +79,30 @@ void setup() {
   if (currentAnimation == STATIC) {
     rgbPanelSet(0);
   }
+  
+  // Initialize timing variables
+  lastUpdateTime = millis();
+  lastDisplayUpdate = lastUpdateTime;
+  lastAnimationUpdate = lastUpdateTime;
+  lastFrameTime = lastUpdateTime;
 }
 
 void loop() {
+  // Feed watchdog timer
+  ESP.wdtFeed();
+  
+  // Update button state
+  upButton.update();
+  downButton.update();
+  enterButton.update();
+  
+  mainloopCurrentTime = millis();
+  // Throttle main loop updates
+  if (mainloopCurrentTime - lastUpdateTime < UPDATE_INTERVAL) {
+    return;
+  }
+  lastUpdateTime = mainloopCurrentTime;
+  
   // Handle manual override if happening
   processWifiOverride();
 
@@ -79,12 +114,13 @@ void loop() {
     handleWebServer();
   }
   
-  // Process animations (if any)
-  processAnimations();
-  
   // Continue with normal operation regardless of WiFi status
   if (currentAnimation == STATIC) {
-    rgbPanelProcess();
+      rgbPanelSet(0);
+      displayMain();
+  } else {
+    // Process animations (if any)
+    processAnimations();
   }
   
   // Check if settings need to be saved (will only save if values changed)

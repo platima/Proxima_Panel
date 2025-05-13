@@ -7,8 +7,8 @@
 
 ESP8266WebServer server(80);  // Create a web server on port 80
 
-// HTML page template with CSS and JavaScript
-const char* htmlTemplate = R"rawliteral(
+// HTML page template with CSS and JavaScript (moved to PROGMEM)
+const char htmlTemplate[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html>
 <head>
@@ -168,6 +168,24 @@ const char* htmlTemplate = R"rawliteral(
     let currentMode = 'static';
     let isUpdating = false;
     let updateTimer = null;
+    let requestCount = 0;
+    let lastRequestTime = 0;
+    
+    // Rate limiting
+    function checkRateLimit() {
+      const now = Date.now();
+      if (now - lastRequestTime > 1000) {
+        requestCount = 0;
+      }
+      
+      if (requestCount >= 10) {
+        return false;
+      }
+      
+      requestCount++;
+      lastRequestTime = now;
+      return true;
+    }
     
     // Animation RGB control mapping
     const animationRGBControl = {
@@ -205,8 +223,8 @@ const char* htmlTemplate = R"rawliteral(
       var value = parseInt(input.value);
       
       // Validate input
-      if (value < 0 || value > 255) {
-        value = Math.max(0, Math.min(255, value));
+      if (isNaN(value) || value < 0 || value > 255) {
+        value = Math.max(0, Math.min(255, value || 0));
         input.value = value;
       }
       
@@ -248,7 +266,11 @@ const char* htmlTemplate = R"rawliteral(
       }
       
       updateTimer = setTimeout(function() {
-        saveSettings();
+        if (checkRateLimit()) {
+          saveSettings();
+        } else {
+          showStatus("Rate limit reached");
+        }
       }, 100); // 100ms delay to batch updates
     }
     
@@ -270,7 +292,7 @@ const char* htmlTemplate = R"rawliteral(
     function updateFromHex() {
       var hex = document.getElementById('hexInput').value.replace('#', '');
       
-      if (hex.length === 6) {
+      if (hex.length === 6 && /^[0-9A-Fa-f]+$/.test(hex)) {
         var r = parseInt(hex.substr(0, 2), 16);
         var g = parseInt(hex.substr(2, 2), 16);
         var b = parseInt(hex.substr(4, 2), 16);
@@ -332,12 +354,17 @@ const char* htmlTemplate = R"rawliteral(
     
     function saveSettings() {
       if (isUpdating) return;
+      if (!checkRateLimit()) {
+        showStatus("Rate limit reached");
+        return;
+      }
+      
       isUpdating = true;
       
-      var red = document.getElementById('redSlider').value;
-      var green = document.getElementById('greenSlider').value;
-      var blue = document.getElementById('blueSlider').value;
-      var brightness = document.getElementById('brightnessSlider').value;
+      var red = Math.min(255, Math.max(0, parseInt(document.getElementById('redSlider').value)));
+      var green = Math.min(255, Math.max(0, parseInt(document.getElementById('greenSlider').value)));
+      var blue = Math.min(255, Math.max(0, parseInt(document.getElementById('blueSlider').value)));
+      var brightness = Math.min(255, Math.max(0, parseInt(document.getElementById('brightnessSlider').value)));
       
       var xhttp = new XMLHttpRequest();
       xhttp.onreadystatechange = function() {
@@ -351,6 +378,11 @@ const char* htmlTemplate = R"rawliteral(
     }
     
     function saveMode() {
+      if (!checkRateLimit()) {
+        showStatus("Rate limit reached");
+        return;
+      }
+      
       var mode = currentMode;
       var animation = '';
       
@@ -401,7 +433,10 @@ const char* htmlTemplate = R"rawliteral(
 )rawliteral";
 
 // Initialize the web server
-void setupWebServer() {
+ICACHE_FLASH_ATTR void setupWebServer() {
+  // Feed watchdog timer first thing
+  ESP.wdtFeed();
+
   // Configure mDNS responder
   if (MDNS.begin("proxima")) {
     Serial.println("MDNS responder started");
@@ -434,57 +469,102 @@ void handleWebServer() {
 
 // Root handler - display the control panel
 void handleRoot() {
-  // Replace placeholders with current values
-  String html = htmlTemplate;
-  html.replace("%RED%", String(red));
-  html.replace("%GREEN%", String(green));
-  html.replace("%BLUE%", String(blue));
-  html.replace("%BRIGHTNESS%", String(rgbBrightnessLevel)); // Now 0-255 range
-  
-  // Calculate hex color
-  String hexColor = "";
-  char hex[7];
-  sprintf(hex, "%02X%02X%02X", red, green, blue);
-  hexColor = String(hex);
-  html.replace("%HEX%", hexColor);
-  
-  // Mode and animation
-  String mode = (currentAnimation == STATIC) ? "static" : "animation";
-  html.replace("%MODE%", mode);
-  
-  String animName = "breathing"; // default
-  switch(currentAnimation) {
-    case BREATHING: animName = "breathing"; break;
-    case RAINBOW: animName = "rainbow"; break;
-    case PULSE: animName = "pulse"; break;
-    case COLOR_FADE: animName = "colorFade"; break;
-    default: break;
+  // Feed watchdog timer first thing
+  ESP.wdtFeed();
+
+  // Rate limiting
+  unsigned long currentTime = millis();
+  if (currentTime - lastWebRequest < WEB_RATE_LIMIT_INTERVAL) {
+    server.send(429, "text/plain", "Rate limit exceeded");
+    return;
   }
-  html.replace("%ANIMATION%", animName);
+  lastWebRequest = currentTime;
   
-  server.send(200, "text/html", html);
+// Use a chunked approach instead of a large buffer
+  // Add CORS header
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.send(200, "text/html", "");
+  
+  // Send the HTML template in smaller chunks directly from PROGMEM
+  // For example:
+  const char* ptr = htmlTemplate;
+  char buffer[256]; // Much smaller buffer
+  int remaining = strlen_P(htmlTemplate);
+  
+  while (remaining > 0) {
+    int chunkSize = min(remaining, 256);
+    strncpy_P(buffer, ptr, chunkSize);
+    buffer[chunkSize] = 0; // Null terminate
+    
+    // Replace placeholders if needed in this chunk
+    String chunk = buffer;
+    // Only do replacements if relevant placeholders are in this chunk
+    if (chunk.indexOf("%RED%") >= 0) chunk.replace("%RED%", String(red));
+    if (chunk.indexOf("%GREEN%") >= 0) chunk.replace("%GREEN%", String(green));
+    if (chunk.indexOf("%BLUE%") >= 0) chunk.replace("%BLUE%", String(blue));
+    if (chunk.indexOf("%BRIGHTNESS%") >= 0) chunk.replace("%BRIGHTNESS%", String(rgbBrightnessLevel));
+  
+    // Calcu late hex color
+    String hexColor = "";
+    char hex[7];
+    sprintf(hex, "%02X%02X%02X", red, green, blue);
+    hexColor = String(hex);
+    if (chunk.indexOf("%HEX%") >= 0) chunk.replace("%HEX%", String(hexColor));
+    
+    // Mode and animation
+    String mode = (currentAnimation == STATIC) ? "static" : "animation";
+    if (chunk.indexOf("%MODE%") >= 0) chunk.replace("%MODE%", String(mode));
+    
+    String animName = "breathing"; // default
+    switch(currentAnimation) {
+      case BREATHING: animName = "breathing"; break;
+      case RAINBOW: animName = "rainbow"; break;
+      case PULSE: animName = "pulse"; break;
+      case COLOR_FADE: animName = "colorFade"; break;
+      default: break;
+    }
+    if (chunk.indexOf("%ANIMATION%") >= 0) chunk.replace("%ANIMATION%", String(animName));
+
+    server.sendContent(chunk);
+    
+    ptr += chunkSize;
+    remaining -= chunkSize;
+    ESP.wdtFeed(); // Feed watchdog during chunked sending
+  }
+  
+  server.sendContent(""); // End chunked response
+  ESP.wdtFeed();
 }
 
 // Apply and save settings
 void handleSave() {
-  // Get parameters from URL
+  // Feed watchdog timer first thing
+  ESP.wdtFeed();
+
+  // Rate limiting
+  unsigned long currentTime = millis();
+  if (currentTime - lastWebRequest < WEB_RATE_LIMIT_INTERVAL) {
+    server.send(429, "text/plain", "Rate limit exceeded");
+    return;
+  }
+  lastWebRequest = currentTime;
+  
+  // Get parameters from URL with bounds checking
   if (server.hasArg("r")) {
-    red = server.arg("r").toInt();
+    red = constrain(server.arg("r").toInt(), 0, 255);
   }
   
   if (server.hasArg("g")) {
-    green = server.arg("g").toInt();
+    green = constrain(server.arg("g").toInt(), 0, 255);
   }
   
   if (server.hasArg("b")) {
-    blue = server.arg("b").toInt();
+    blue = constrain(server.arg("b").toInt(), 0, 255);
   }
   
   if (server.hasArg("br")) {
-    rgbBrightnessLevel = server.arg("br").toInt(); // Now directly 0-255
-    // Ensure brightness is within valid range
-    if (rgbBrightnessLevel < 0) rgbBrightnessLevel = 0;
-    if (rgbBrightnessLevel > 255) rgbBrightnessLevel = 255;
+    rgbBrightnessLevel = constrain(server.arg("br").toInt(), 0, 255);
   }
   
   // Apply settings immediately
@@ -495,12 +575,26 @@ void handleSave() {
   // Save to storage
   saveSettings();
   
+  // Add CORS header
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  
   // Confirm success
   server.send(200, "text/plain", "OK");
 }
 
 // Set the mode (static or animation)
 void handleSetMode() {
+  // Feed watchdog timer first thing
+  ESP.wdtFeed();
+
+  // Rate limiting
+  unsigned long currentTime = millis();
+  if (currentTime - lastWebRequest < WEB_RATE_LIMIT_INTERVAL) {
+    server.send(429, "text/plain", "Rate limit exceeded");
+    return;
+  }
+  lastWebRequest = currentTime;
+  
   if (server.hasArg("mode")) {
     String mode = server.arg("mode");
     
@@ -527,17 +621,34 @@ void handleSetMode() {
     saveSettings();
   }
   
+  // Add CORS header
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  
   server.send(200, "text/plain", "OK");
 }
 
 // Get current settings (JSON response)
 void handleGetSettings() {
+  // Feed watchdog timer first thing
+  ESP.wdtFeed();
+  
+  // Rate limiting
+  unsigned long currentTime = millis();
+  if (currentTime - lastWebRequest < WEB_RATE_LIMIT_INTERVAL) {
+    server.send(429, "text/plain", "Rate limit exceeded");
+    return;
+  }
+  lastWebRequest = currentTime;
+  
   String json = "{\"red\":" + String(red) + 
                 ",\"green\":" + String(green) + 
                 ",\"blue\":" + String(blue) + 
                 ",\"brightness\":" + String(rgbBrightnessLevel) + 
                 ",\"mode\":\"" + ((currentAnimation == STATIC) ? "static" : "animation") + "\"" +
                 ",\"animation\":\"" + String(getAnimationName(currentAnimation)) + "\"}";
-                
+  
+  // Add CORS header
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  
   server.send(200, "application/json", json);
 }

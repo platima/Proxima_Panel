@@ -1,8 +1,8 @@
 // Display_Init.ino for Proxima Arduino Firmware
 // 2025 Platima (https://github.com/platima https://plati.ma)
-// Handles OLED display initialisatio due to potential addresses
+// Handles OLED display initialisation due to potential addresses
 
-bool initDisplayWithScan() {
+ICACHE_FLASH_ATTR bool initDisplayWithScan() {
   Serial.println("Scanning for OLED display...");
   
   for (int i = 0; i < numAddresses; i++) {
@@ -17,7 +17,11 @@ bool initDisplayWithScan() {
       return true;
     }
     
-    delay(100); // Small delay between attempts
+    // Non-blocking delay between attempts
+    unsigned long delayStart = millis();
+    while (millis() - delayStart < 100) {
+      ESP.wdtFeed(); // Feed watchdog during wait
+    }
   }
   
   Serial.println("No OLED display found at any address. Continuing without display...");

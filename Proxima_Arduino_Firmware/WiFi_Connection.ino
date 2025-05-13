@@ -14,10 +14,10 @@ enum WiFiConnectionState {
 WiFiConnectionState wifiConnState = WIFI_INIT;
 unsigned long wifiLastStateChange = 0;
 const unsigned long WIFI_CONNECT_TIMEOUT = 15000; // 15 seconds timeout for connection attempt
-const unsigned long WIFI_PORTAL_TIMEOUT = 180000; // 3 minutes timeout for portal (same as before)
+const unsigned long WIFI_PORTAL_TIMEOUT = 180000; // 3 minutes timeout for portal
 
 WiFiManager wifiManager;
-String apName = "";
+char apName[20] = "";
 int j = 0; // For WiFi animation
 unsigned long lastAnimationTime = 0;
 const unsigned long ANIMATION_INTERVAL = 500; // Animation frame interval in ms
@@ -30,13 +30,26 @@ void saveWiFiConfigCallback() {
   saveSettings();
 }
 
-void setupWiFi() {
+ICACHE_FLASH_ATTR void setupWiFi() {
+  // Feed watchdog timer first thing
+  ESP.wdtFeed();
+
   // Initialize WiFi state machine
   wifiConnState = WIFI_INIT;
   wifiLastStateChange = millis();
   
   // Set AP name with device chip ID
-  apName = "Proxima-" + String(ESP.getChipId(), HEX);
+  sprintf(apName, "Proxima-%X", ESP.getChipId());
+
+  wifiManager.setCustomHeadElement(""); // Minimize custom HTML
+  wifiManager.setMinimumSignalQuality(10); // Lower requirement
+  wifiManager.setRemoveDuplicateAPs(false);
+  wifiManager.setDebugOutput(false); // Disable debug output
+  wifiManager.setMinimumSignalQuality(10); // Lower requirements
+  wifiManager.setConfigPortalTimeout(180); // 3 minutes (in seconds)
+  wifiManager.setConnectTimeout(30); // 30 seconds connection timeout
+  wifiManager.setAPCallback(NULL); // Remove callback
+  wifiManager.setSaveConfigCallback(NULL); // Remove callback
   
   // Configure WiFiManager
   wifiManager.setConfigPortalTimeout(WIFI_PORTAL_TIMEOUT / 1000); // seconds
@@ -48,10 +61,12 @@ void setupWiFi() {
   startWiFiConnection();
 }
 
-void startWiFiConnection() {
+ICACHE_FLASH_ATTR void startWiFiConnection() {
+  // Feed watchdog timer first thing
+  ESP.wdtFeed();
+
   wifiConnState = WIFI_CONNECTING;
   wifiLastStateChange = millis();
-  
   
   if (displayAvailable) {
     // Display connecting animation
@@ -67,12 +82,14 @@ void startWiFiConnection() {
   WiFi.begin();
 }
 
-void handleWiFiConfigPortal() {
+ICACHE_FLASH_ATTR void handleWiFiConfigPortal() {
+  // Feed watchdog timer first thing
+  ESP.wdtFeed();
+
   // Only start portal if we're in the right state
   if (wifiConnState != WIFI_CONFIG_PORTAL) {
     wifiConnState = WIFI_CONFIG_PORTAL;
     wifiLastStateChange = millis();
-    
     
     if (displayAvailable) {
       // Display config portal information
@@ -93,11 +110,14 @@ void handleWiFiConfigPortal() {
     }
     
     // Start config portal (non-blocking)
-    wifiManager.startConfigPortal(apName.c_str());
+    wifiManager.startConfigPortal(apName);
   }
 }
 
 void processWiFiConnection() {
+  // Feed watchdog timer first thing
+  ESP.wdtFeed();
+
   // Handle animation timing
   unsigned long currentMillis = millis();
 
@@ -106,7 +126,7 @@ void processWiFiConnection() {
     
     // Update animation frame
     if (wifiConnState == WIFI_CONNECTING || wifiConnState == WIFI_CONFIG_PORTAL) {
-      j = (j + 1) % 3;
+      j = (j + 1) % 3; // Clamp to bounds using modulus in case of error
     }
   }
   
@@ -155,7 +175,10 @@ void processWiFiConnection() {
         saveSettings();
         
         // Show connection info for 3 seconds then continue
-        delay(3000);
+        unsigned long connectStart = millis();
+        while (millis() - connectStart < 3000) {
+          ESP.wdtFeed(); // Feed watchdog during delay
+        }
       } 
       else if (millis() - wifiLastStateChange >= WIFI_CONNECT_TIMEOUT) {
         // Timeout, start config portal
@@ -179,7 +202,6 @@ void processWiFiConnection() {
           setupWebServer();
           webServerStarted = true;
         }
-        
         
         if (displayAvailable) {
           // Display connected info
@@ -205,13 +227,15 @@ void processWiFiConnection() {
         saveSettings();
         
         // Show connection info for 3 seconds then continue
-        delay(3000);
+        unsigned long connectStart = millis();
+        while (millis() - connectStart < 3000) {
+          ESP.wdtFeed(); // Feed watchdog during delay
+        }
       } 
       else if (millis() - wifiLastStateChange >= WIFI_PORTAL_TIMEOUT) {
         // Portal timeout
         wifiConnState = WIFI_FAILED;
         wifiLastStateChange = millis();
-        
         
         if (displayAvailable) {
           // Display timeout message
@@ -228,7 +252,10 @@ void processWiFiConnection() {
         Serial.println("WiFi portal timeout");
         
         // Show message for 2 seconds then continue
-        delay(2000);
+        unsigned long timeoutStart = millis();
+        while (millis() - timeoutStart < 2000) {
+          ESP.wdtFeed(); // Feed watchdog during delay
+        }
       } 
       else {
         // Still in portal, update display with animation
@@ -251,7 +278,7 @@ void processWiFiConnection() {
     case WIFI_FAILED:
       // Failed to connect, but continue with the rest of the program
       // Periodically try to reconnect (every 60 seconds)
-      if (millis() - wifiLastStateChange >= 60000) {
+      if (millis() - wifiLastStateChange >= WIFI_RECONNECT_INTERVAL) {
         Serial.println("Attempting to reconnect WiFi");
         wifiConnState = WIFI_CONNECTING;
         wifiLastStateChange = millis();
@@ -261,7 +288,7 @@ void processWiFiConnection() {
   }
 }
 
-void Wifi_connection_animation() {
+ICACHE_FLASH_ATTR void Wifi_connection_animation() {
   if (!displayAvailable) return; // Skip if no display
 
   // Only update the connection animation, don't redraw the whole screen
@@ -282,7 +309,7 @@ void Wifi_connection_animation() {
   display.display();
 }
 
-void Wifi_connected_animation() {
+ICACHE_FLASH_ATTR void Wifi_connected_animation() {
   if (!displayAvailable) return; // Skip if no display
 
   display.setTextSize(1);             
@@ -303,11 +330,16 @@ void startConfigPortalManually() {
 
 void processWifiOverride() {
   // Check for long-press of both up and down buttons to force config portal
-  if (digitalRead(btn_up) == HIGH && digitalRead(btn_down) == HIGH) {
+  if (upButton.read() == HIGH && downButton.read() == HIGH) {
     // Wait to see if it's a long press (about 3 seconds)
     unsigned long pressStart = millis();
     
-    while (digitalRead(btn_up) == HIGH && digitalRead(btn_down) == HIGH) {
+    while (upButton.read() == HIGH && downButton.read() == HIGH) {
+      // Update buttons
+      upButton.update();
+      downButton.update();
+      ESP.wdtFeed(); // Feed watchdog during wait
+      
       // Show feedback on display
       if (displayAvailable) {
         display.clearDisplay();
@@ -332,7 +364,6 @@ void processWifiOverride() {
         startConfigPortalManually();
         break;
       }
-      delay(50);
     }
   }
 }

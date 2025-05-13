@@ -11,12 +11,17 @@ const char* settingsFile = "/settings.json";
 // Initialize the file system
 void initStorage() {
   if (!LittleFS.begin()) {
-    Serial.println("Failed to mount file system");
-    // Continue anyway - we'll use defaults
-    return;
+    Serial.println("Failed to mount file system, attempting format...");
+    // Try to format and begin once more
+    LittleFS.format();
+    if (!LittleFS.begin()) {
+      Serial.println("File system mount failed permanently. Continuing with defaults.");
+      return;
+    }
+    Serial.println("File system formatted and mounted successfully");
+  } else {
+    Serial.println("File system mounted successfully");
   }
-  
-  Serial.println("File system mounted successfully");
 }
 
 // Load settings from storage
@@ -47,16 +52,14 @@ bool loadSettings() {
     return false;
   }
   
-  // Copy values from the JsonDocument to the settings
-  red = doc["red"] | 20;  // Default to 20 if not present
-  green = doc["green"] | 20;
-  blue = doc["blue"] | 20;
-  rgbBrightnessLevel = doc["brightness"] | 50; // Now 0-255 range, default to 50
-  rgbPanelMode = doc["mode"] | "Auto";
+  // Copy values from the JsonDocument to the settings with clamping
+  red = constrain(doc["red"] | 20, 0, 255);
+  green = constrain(doc["green"] | 20, 0, 255);
+  blue = constrain(doc["blue"] | 20, 0, 255);
+  rgbBrightnessLevel = constrain(doc["brightness"] | 50, 0, 255);
   
   // Load animation mode
-  String animationModeName = doc["animation"] | "Static";
-  currentAnimation = getAnimationByName(animationModeName);
+  currentAnimation = getAnimationByName(doc["animation"] | "Static");
   
   // Close the file
   file.close();
@@ -72,16 +75,17 @@ bool loadSettings() {
   Serial.println(")");
   Serial.print("Brightness level: ");
   Serial.println(rgbBrightnessLevel);
-  Serial.print("Panel mode: ");
-  Serial.println(rgbPanelMode);
   Serial.print("Animation mode: ");
-  Serial.println(animationModeName);
+  Serial.println(getAnimationName(currentAnimation));
   
   return true;
 }
 
 // Save settings to storage
 bool saveSettings() {
+  // Feed watchdog timer first thing
+  ESP.wdtFeed();
+
   // Create a JsonDocument with larger size for animation support
   JsonDocument doc;
   doc.to<JsonObject>(); // Preallocate as object type 
@@ -90,8 +94,7 @@ bool saveSettings() {
   doc["red"] = red;
   doc["green"] = green;
   doc["blue"] = blue;
-  doc["brightness"] = rgbBrightnessLevel; // Now 0-255 range
-  doc["mode"] = rgbPanelMode;
+  doc["brightness"] = rgbBrightnessLevel;
   doc["animation"] = getAnimationName(currentAnimation);
   
   // Open the file for writing
@@ -120,8 +123,9 @@ void saveSettingsIfNeeded() {
   static int last_green = -1;
   static int last_blue = -1;
   static int last_brightness = -1;
-  static String last_mode = "";
   static AnimationMode last_animation = (AnimationMode)-1;
+  static unsigned long lastSaveTime = 0;
+  const unsigned long SAVE_DEBOUNCE_TIME = 1000; // 1 second debounce
   
   // Check if any values have changed significantly
   bool changed = false;
@@ -141,13 +145,8 @@ void saveSettingsIfNeeded() {
     changed = true;
   }
   
-  if (abs(last_brightness - rgbBrightnessLevel) > 5) { // Changed threshold for 0-255 range
+  if (abs(last_brightness - rgbBrightnessLevel) > 5) {
     last_brightness = rgbBrightnessLevel;
-    changed = true;
-  }
-  
-  if (last_mode != rgbPanelMode) {
-    last_mode = rgbPanelMode;
     changed = true;
   }
   
@@ -156,16 +155,24 @@ void saveSettingsIfNeeded() {
     changed = true;
   }
   
-  // If values have changed significantly, save settings
-  if (changed) {
+  // If values have changed significantly and enough time has passed, save settings
+  if (changed && (millis() - lastSaveTime > SAVE_DEBOUNCE_TIME)) {
     saveSettings();
+    lastSaveTime = millis();
   }
 }
 
 // Format the file system if needed
-void formatStorage() {
+ICACHE_FLASH_ATTR void formatStorage() {
   Serial.println("Formatting file system...");
+
+  // Feed watchdog time
+  ESP.wdtFeed();
+
   LittleFS.format();
+  
+  // Feed watchdog timer
+  ESP.wdtFeed();
   Serial.println("File system formatted!");
 }
 
@@ -174,8 +181,7 @@ void resetSettings() {
   red = 20;
   green = 20;
   blue = 20;
-  rgbBrightnessLevel = 50; // New default for 0-255 range
-  rgbPanelMode = "Auto";
+  rgbBrightnessLevel = 50;
   currentAnimation = STATIC;  // Reset to static mode
   
   saveSettings();

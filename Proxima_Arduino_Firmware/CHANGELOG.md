@@ -69,3 +69,36 @@
 - Fixed physical button responsiveness - OLED display and LEDs now update while buttons are held
 - RGB and brightness values change in real-time as buttons are pressed, providing immediate visual feedback
 - Improved overall user experience when using physical controls
+
+0.2.7 2025-05-12
+- Replaced all delay() calls with millis()-based non-blocking timing
+- Implemented throttling with UPDATE_INTERVAL (50ms) in main loop
+- Added "Access-Control-Allow-Origin" header to web interface endpoints
+- Enabled watchdog timer (8-second timeout) with proper feeding
+- Improved file system error handling with format and retry mechanism
+- Changed Wi-Fi reconnection to occur periodically (60-second intervals) to reduce power usage
+- Added proper bounds checking with constrain() for all RGB and brightness values
+- Implemented rate limiting for web interface (10 requests per second max)
+- Replaced digitalRead() with Bounce2 library for improved button handling
+- Added bounds checking to hsvToRgb() function to prevent calculation errors
+- Made animation frame rate adaptive to MCU performance (adjusts between 10-100ms)
+- Enhanced reset confirmation with 3-second hold requirement and progress bar
+- Moved HTML template to PROGMEM to reduce heap fragmentation
+- Fixed various edge cases for improved stability
+- Major code cleanup and organization
+
+0.2.8 2025-05-13
+- Fixed critical stability issues with web interface and overall responsiveness
+- Optimized memory utilization by changing MMU settings to "16KB cache + 48KB IRAM" (reduced IRAM usage from 94% to 69%)
+- Reduced network stack overhead by switching to "lwIP v2 Lower Memory (no features)" variant
+- Optimized web server to use chunked HTML delivery for the control interface
+- Removed unused rgbPanelMode variable (only "Auto" mode was ever used)
+- Added more frequent watchdog timer feeding in critical sections
+- Fixed memory leaks in web interface HTML template handling
+- Implemented improved error handling for web server requests
+- Enhanced WiFi reconnection logic to prevent connection state lockups
+- Optimized String usage throughout codebase
+- Better memory management for animation routines
+- Applied ICACHE_FLASH_ATTR to non-time-critical functions to move them from IRAM to Flash
+- Added rate limiting for web interface to prevent request flooding
+- Improved button responsiveness during web operations

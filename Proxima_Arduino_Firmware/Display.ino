@@ -2,188 +2,134 @@
 // 2025 Platima (https://github.com/platima https://plati.ma)
 // Handles OLED display functions
 
-// Array for cursor position
-byte cursorPosition[5] = {15, 25, 35, 45, 55}; // Added one more position for Reset option
-
-// cursorPosition[cursorIndex]
-byte cursorIndex = 0;
-byte menu_layer = 0;
-
-void menu(){
+void displayMenu(){
   if (!displayAvailable) return; // Skip if no display
 
-  switch(menu_layer){
+  switch(menuLayer){
     case 0:
-      menuLayer_0();
-      break; // Added break statement to prevent fallthrough
-    case 1:
-      menuLayer_1();
-      break; // Added break statement
-    case 2:
-      menuLayer_2(); // Added a new menu layer for reset confirmation
+      handleButtons();
       break;
-  }
-}
-
-void menuLayer_0(){
-  if(digitalRead(btn_up) == HIGH){
-   while(digitalRead(btn_up) == HIGH){}
-   if(cursorIndex != 0){
-    cursorIndex--;
-   }  
-  }
-
-  if(digitalRead(btn_down) == HIGH){
-   while(digitalRead(btn_down) == HIGH){}
-   if(cursorIndex != 4){ // Changed to 4 to include the new Reset option
-    cursorIndex++;
-   }  
-  }
-
-  if(digitalRead(btn_enter) == HIGH){
-   while(digitalRead(btn_enter) == HIGH){}
-   if(cursorIndex == 4) { // Reset option
-     menu_layer = 2; // Go to reset confirmation menu
-   } else {
-     menu_layer = 1; // Normal RGB/brightness menu
-   }
-  }
-}
-
-void menuLayer_1(){
-  while(digitalRead(btn_up) == HIGH){
-    if(cursorIndex == 0){
-      if(red < 255){
-          red++;
-        }
-    }
-    
-    if(cursorIndex == 1){
-      if(green < 255){
-          green++;
-        }
-    }
-
-    if(cursorIndex == 2){
-      if(blue < 255){
-          blue++;
-        }
-    }   
-
-    if(cursorIndex == 3){
-      while(digitalRead(btn_up) == HIGH){}
-      rgbBrightnessLevel += 5; // Increment by 5 for 0-255 range
-      if(rgbBrightnessLevel > 255){
-         rgbBrightnessLevel = 255;
-      }
-    }
-    
-    // Update display and LEDs while button is held
-    if (currentAnimation == STATIC) {
-      rgbPanelSet(0); // Update LEDs immediately
-    }
-    display_mode_auto(); // Update display immediately
-    delay(20);
-  }
-
-  while(digitalRead(btn_down) == HIGH){
-    if(cursorIndex == 0){
-      if(red > 0){
-          red--;
-        }
-    }
-    
-    if(cursorIndex == 1){
-      if(green > 0){
-          green--;
-        }
-    }
-
-    if(cursorIndex == 2){
-      if(blue > 0){
-          blue--;
-        }
-    }  
-
-    if(cursorIndex == 3){
-      while(digitalRead(btn_down) == HIGH){}
-      if(rgbBrightnessLevel > 0){
-         rgbBrightnessLevel -= 5; // Decrement by 5 for 0-255 range
-      }
-      if(rgbBrightnessLevel < 0){
-         rgbBrightnessLevel = 0;
-      }
-    }
-    
-    // Update display and LEDs while button is held
-    if (currentAnimation == STATIC) {
-      rgbPanelSet(0); // Update LEDs immediately
-    }
-    display_mode_auto(); // Update display immediately
-    delay(20);     
-  }
-
-  if(digitalRead(btn_enter) == HIGH){
-   while(digitalRead(btn_enter) == HIGH){}
-   menu_layer = 0;
-   // Save settings immediately after exiting this menu
-   saveSettings();
+    case 1:
+      handleButtons();
+      break;
+    case 2:
+      menuLayer_2(); // Reset confirmation
+      break;
   }
 }
 
 // New menu layer for reset confirmation
 void menuLayer_2() {
   static byte confirmCursor = 0; // 0 = No, 1 = Yes
+  static unsigned long holdStartTime = 0;
+  static bool resetConfirmed = false;
   
-  if(digitalRead(btn_up) == HIGH || digitalRead(btn_down) == HIGH){
-    while(digitalRead(btn_up) == HIGH || digitalRead(btn_down) == HIGH){}
+  // Handle buttons
+  if(upButton.pressed() || downButton.pressed()) {
     confirmCursor = !confirmCursor; // Toggle between 0 and 1
   }
   
-  if(digitalRead(btn_enter) == HIGH){
-    while(digitalRead(btn_enter) == HIGH){}
+  if(enterButton.pressed()) {
     if(confirmCursor == 1) { // Yes was selected
+      if(!resetConfirmed) {
+        // Start 3-second hold timer
+        holdStartTime = millis();
+        resetConfirmed = true;
+      }
+    } else {
+      // Return to main menu
+      menuLayer = 0;
+      confirmCursor = 0;
+      resetConfirmed = false;
+    }
+  }
+  
+  // Check for held enter button
+  if(resetConfirmed && enterButton.read() == HIGH) {
+    if(millis() - holdStartTime >= 3000) {
+      // 3 seconds passed, perform reset
       resetSettings();
+
       // Apply reset settings immediately
       rgbPanelSet(0);
+      
+      // Show confirmation
+      if(displayAvailable) {
+        display.clearDisplay();
+        display.setTextSize(1);
+        display.setTextColor(WHITE);
+        display.setCursor(0, 20);
+        display.println("Settings Reset!");
+        display.display();
+      }
+      
+      // Wait a moment, then return to main menu
+      unsigned long confirmStart = millis();
+      while(millis() - confirmStart < 2000) {
+        ESP.wdtFeed();
+      }
+      
+      menuLayer = 0;
+      confirmCursor = 0;
+      resetConfirmed = false;
     }
-    // Return to main menu regardless of choice
-    menu_layer = 0;
-    confirmCursor = 0; // Reset for next time
+  }
+  
+  // Handle button release
+  if(enterButton.released() && resetConfirmed) {
+    // Button released before 3 seconds
+    holdStartTime = 0;
+    resetConfirmed = false;
   }
   
   // Display reset confirmation screen
-  display.clearDisplay();
-  display.setTextSize(1);
-  display.setTextColor(WHITE);
-  display.setCursor(0, 0);
-  display.println("Reset Settings?");
-  
-  display.setCursor(30, 20);
-  display.println("No");
-  display.setCursor(30, 35);
-  display.println("Yes");
-  
-  // Show cursor
-  display.setCursor(20, 20 + (confirmCursor * 15));
-  display.println(">");
-  
-  display.display();
+  if(displayAvailable) {
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setTextColor(WHITE);
+    display.setCursor(0, 0);
+    
+    if(resetConfirmed) {
+      display.println("Hold Enter...");
+      display.setCursor(0, 15);
+      display.println("(" + String((3000 - (millis() - holdStartTime)) / 1000 + 1) + " sec)");
+    } else {
+      display.println("Reset Settings?");
+    }
+    
+    display.setCursor(30, 30);
+    display.println("No");
+    display.setCursor(30, 45);
+    display.println("Yes");
+    
+    // Show cursor
+    display.setCursor(20, 30 + (confirmCursor * 15));
+    display.println(">");
+    
+    display.display();
+  }
 }
 
-void display_mode_auto(){
+void displayMain(){
   if (!displayAvailable) return; // Skip if no display
 
-  menu();
+  unsigned long currentTime = millis();
+  
+  // Throttle display updates to DISPLAY_UPDATE_INTERVAL
+  if (currentTime - lastDisplayUpdateTime < DISPLAY_UPDATE_INTERVAL) {
+    return;
+  }
+  lastDisplayUpdateTime = currentTime;
+
+  displayMenu();
   
   // Only draw the regular menu if we're not in reset confirmation
-  if(menu_layer != 2) {
+  if(menuLayer != 2) {
     // TOP
     display.clearDisplay();
     display.setTextSize(1);             
     display.setTextColor(WHITE);        
-    display.setCursor(0,0);             
-    display.println(rgbPanelMode);
+    display.setCursor(0,0);
   
     if(wifiStatus == true){
       Wifi_connected_animation();

@@ -2,15 +2,20 @@
 // 2025 Platima (https://github.com/platima https://plati.ma)
 // Handles OLED display animations
 
+// Adaptive frame rate variables
+const unsigned long TARGET_FRAME_TIME = 5; // Target 5ms per frame (200 FPS)
+unsigned long lastFrameCount = 0;
+float currentFPS = 30; // Current measured FPS
+
 // Get animation name from enum
-String getAnimationName(AnimationMode mode) {
-  return String(animationNames[mode]);
+const char* getAnimationName(AnimationMode mode) {
+  return animationNames[mode];
 }
 
 // Get animation enum from name
-AnimationMode getAnimationByName(String name) {
+AnimationMode getAnimationByName(const char* name) {
   for (int i = 0; i < 5; i++) {
-    if (name == animationNames[i]) {
+    if (strcmp(name, animationNames[i]) == 0) {
       return (AnimationMode)i;
     }
   }
@@ -29,42 +34,57 @@ void processAnimations() {
     return;
   }
   
-  // Check if it's time to update the animation
+  // Adaptive frame rate calculation
   unsigned long currentMillis = millis();
-  if (currentMillis - lastAnimationUpdate < animationInterval) {
-    return;
-  }
-  
-  // Update animation timestamp
-  lastAnimationUpdate = currentMillis;
-  
-  // Apply speed multiplier from animation config
-  float speedMultiplier = animationConfigs[currentAnimation].speed;
-  
-  // Process the current animation
-  switch (currentAnimation) {
-    case BREATHING:
-      breathingAnimation(speedMultiplier);
-      break;
-    case RAINBOW:
-      rainbowAnimation(speedMultiplier);
-      break;
-    case PULSE:
-      pulseAnimation(speedMultiplier);
-      break;
-    case COLOR_FADE:
-      colorFadeAnimation(speedMultiplier);
-      break;
-    default:
-      // Static or unknown - do nothing
-      break;
+  if (currentMillis - lastFrameTime >= animationInterval) {
+    // Calculate actual frame time
+    unsigned long frameTime = currentMillis - lastFrameTime;
+    currentFPS = 1000.0 / frameTime;
+    
+    // Adjust animation interval based on performance
+    if (currentFPS < 30 && animationInterval < 100) {
+      animationInterval += 5; // Decrease frame rate
+    } else if (currentFPS > 60 && animationInterval > 10) {
+      animationInterval -= 5; // Increase frame rate
+    }
+    
+    // Cap between 10ms and 100ms (10-100 FPS)
+    animationInterval = constrain(animationInterval, 10, 100);
+    
+    lastFrameTime = currentMillis;
+    lastAnimationUpdate = currentMillis;
+    
+    // Apply speed multiplier from animation config
+    float speedMultiplier = animationConfigs[currentAnimation].speed;
+    
+    // Process the current animation
+    switch (currentAnimation) {
+      case BREATHING:
+        breathingAnimation(speedMultiplier);
+        break;
+      case RAINBOW:
+        rainbowAnimation(speedMultiplier);
+        break;
+      case PULSE:
+        pulseAnimation(speedMultiplier);
+        break;
+      case COLOR_FADE:
+        colorFadeAnimation(speedMultiplier);
+        break;
+      default:
+        // Static or unknown - do nothing
+        break;
+    }
   }
 }
 
 // Breathing animation - fades LED brightness up and down
 void breathingAnimation(float speed) {
   // Update breathing intensity with smooth float values
-  breathingIntensity += (breathingDirection * speed * 2.0);
+  // We do this with floats to reduce MCU load
+  int16_t breathingIntensityInt = breathingIntensity * 100;
+  breathingIntensityInt += (breathingDirection * speed * 200) / 100;
+  breathingIntensity = breathingIntensityInt / 100.0;
   
   // Check boundaries and reverse direction
   if (breathingIntensity >= 100.0) {
@@ -145,12 +165,12 @@ void pulseAnimation(float speed) {
     
     // Calculate intensity based on distance from center
     float falloff = 1.0 - (distance / pulseWidth);
-    byte intensity = (byte)(255 * falloff);
+    uint8_t intensity = (uint8_t )(255 * falloff);
     
     // Calculate color with the current RGB values but adjusted intensity
-    byte r = (red * intensity) / 255;
-    byte g = (green * intensity) / 255;
-    byte b = (blue * intensity) / 255;
+    uint8_t  r = (red * intensity) / 255;
+    uint8_t  g = (green * intensity) / 255;
+    uint8_t  b = (blue * intensity) / 255;
     
     // Set pixel color
     RGBpanel.setPixelColor(i, r, g, b);
@@ -177,9 +197,14 @@ void colorFadeAnimation(float speed) {
   RGBpanel.show();
 }
 
-// Utility function to convert HSV to RGB
+// Utility function to convert HSV to RGB with bounds checking
 // h: 0-255 for hue, s: 0-255 for saturation, v: 0-255 for value
 void hsvToRgb(byte h, byte s, byte v, byte *r, byte *g, byte *b) {
+  // Bounds checking
+  h = constrain(h, 0, 255);
+  s = constrain(s, 0, 255);
+  v = constrain(v, 0, 255);
+  
   if (s == 0) {
     // No saturation, just grayscale
     *r = *g = *b = v;
@@ -189,9 +214,15 @@ void hsvToRgb(byte h, byte s, byte v, byte *r, byte *g, byte *b) {
   byte region = h / 43;
   byte remainder = (h - (region * 43)) * 6;
   
-  byte p = (v * (255 - s)) >> 8;
-  byte q = (v * (255 - ((s * remainder) >> 8))) >> 8;
-  byte t = (v * (255 - ((s * (255 - remainder)) >> 8))) >> 8;
+  // Ensure calculations don't overflow
+  uint16_t p = (v * (255 - s)) >> 8;
+  uint16_t q = (v * (255 - ((s * remainder) >> 8))) >> 8;
+  uint16_t t = (v * (255 - ((s * (255 - remainder)) >> 8))) >> 8;
+  
+  // Ensure values are within byte range
+  p = constrain(p, 0, 255);
+  q = constrain(q, 0, 255);
+  t = constrain(t, 0, 255);
   
   switch (region) {
     case 0:  *r = v; *g = t; *b = p; break;

@@ -1,0 +1,1 @@
+compiler.c.flags=-c -Os -g -Wpointer-arith -Wno-implicit-function-declaration -Wl,-EL -fno-inline-functions -nostdlib -mlongcalls -mtext-section-literals -falign-functions=4 -ffunction-sections -fdata-sections -DICACHE_FLASH -fno-exceptions

@@ -38,16 +38,16 @@ void setup() {
   enterButton.attach(btn_enter, INPUT);
   
   // Set debounce intervals
-  upButton.interval(50);
-  downButton.interval(50);
-  enterButton.interval(50);
+  upButton.interval(BUTTON_REPEAT);
+  downButton.interval(BUTTON_REPEAT);
+  enterButton.interval(BUTTON_REPEAT);
 
   // WS2812B INIT
   rgbPanelInit();
   
   // DISPLAY INIT - now with scanning
   unsigned long displayInitStart = millis();
-  initDisplayWithScan();
+  OLED_Init();
 
   // If no display, blink the RGB panel to indicate status
   if (!displayAvailable) {
@@ -91,38 +91,42 @@ void loop() {
   // Feed watchdog timer
   ESP.wdtFeed();
   
-  // Update button state
+  mainloopCurrentTime = millis();
+  
+  // Always update button state regardless of throttling
   upButton.update();
   downButton.update();
   enterButton.update();
   
-  mainloopCurrentTime = millis();
-  // Throttle main loop updates
-  if (mainloopCurrentTime - lastUpdateTime < UPDATE_INTERVAL) {
-    return;
-  }
-  lastUpdateTime = mainloopCurrentTime;
+  // Process button input immediately regardless of throttling
+  handleButtons();
   
-  // Handle manual override if happening
-  processWifiOverride();
+  // Throttle main loop processing
+  if (mainloopCurrentTime - lastUpdateTime >= UPDATE_INTERVAL) {
+    lastUpdateTime = mainloopCurrentTime;
+    
+    // Handle manual override if happening
+    processWifiOverride();
 
-  // Handle WiFi connection state machine
-  processWiFiConnection();
-  
-  // If WiFi is connected, handle web server requests
-  if (wifiStatus) {
-    handleWebServer();
-  }
-  
-  // Continue with normal operation regardless of WiFi status
-  if (currentAnimation == STATIC) {
+    // Handle WiFi connection state machine
+    processWiFiConnection();
+    
+    // If WiFi is connected, handle web server requests
+    if (wifiStatus) {
+      handleWebServer();
+    }
+    
+    // Always display menu regardless of animation mode
+    displayMain();
+    
+    // Process animations if in non-static mode
+    if (currentAnimation != STATIC) {
+      processAnimations();
+    } else {
       rgbPanelSet(0);
-      displayMain();
-  } else {
-    // Process animations (if any)
-    processAnimations();
+    }
+    
+    // Check if settings need to be saved
+    saveSettingsIfNeeded();
   }
-  
-  // Check if settings need to be saved (will only save if values changed)
-  saveSettingsIfNeeded();
 }

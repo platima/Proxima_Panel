@@ -228,7 +228,15 @@ void processWiFiConnection() {
         
         // Show connection info for 3 seconds then continue
         unsigned long connectStart = millis();
-        while (millis() - connectStart < 3000) {
+        bool skipWait = false;  
+
+        while (millis() - connectStart < 3000 && !skipWait) {
+          // Break if a button is pressed
+          upButton.update();
+          downButton.update();
+          enterButton.update();
+          if (enterButton.read() == HIGH || upButton.read() == HIGH || downButton.read() == HIGH) { skipWait = true; } // This currently does not work. Raised issue
+          
           ESP.wdtFeed(); // Feed watchdog during delay
         }
       } 
@@ -290,9 +298,6 @@ void processWiFiConnection() {
 
 ICACHE_FLASH_ATTR void Wifi_connection_animation() {
   if (!displayAvailable) return; // Skip if no display
-
-  // Only update the connection animation, don't redraw the whole screen
-  display.fillRect(105, 0, 18, 8, BLACK); // Clear the animation area
   
   switch (j) {
     case 0:
@@ -309,14 +314,16 @@ ICACHE_FLASH_ATTR void Wifi_connection_animation() {
   display.display();
 }
 
-ICACHE_FLASH_ATTR void Wifi_connected_animation() {
+// Show IP address
+ICACHE_FLASH_ATTR void Wifi_OLED_ShowIP() {
+
   if (!displayAvailable) return; // Skip if no display
+  String ipAddress = WiFi.localIP().toString();
 
   display.setTextSize(1);             
   display.setTextColor(WHITE);        
-  display.setCursor(50, 0);             
-  // Show IP address
-  String ipAddress = WiFi.localIP().toString();
+  display.setCursor((127 - (ipAddress.length() * OLED_CHRWIDTH)), OLED_LINE_6); // 128 wide display minus 15 digits for max IP width * 6 pixels per digit
+
   display.println(ipAddress);
 }
 

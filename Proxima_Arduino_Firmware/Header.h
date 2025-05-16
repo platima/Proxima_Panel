@@ -50,21 +50,31 @@ Adafruit_NeoPixel RGBpanel(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 #include <Adafruit_SH110X.h>
 #define WHITE 1
 #define BLACK 0
-#define SCREEN_WIDTH 128 
+#define SCREEN_WIDTH  128 
 #define SCREEN_HEIGHT 64 
-#define OLED_RESET     -1 
-Adafruit_SH1106G display = Adafruit_SH1106G(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+#define OLED_RESET    -1 
+#define OLED_CHRWIDTH 6
+#define OLED_LINE_1   5
+#define OLED_LINE_2   15
+#define OLED_LINE_3   25
+#define OLED_LINE_4   35
+#define OLED_LINE_5   45
+#define OLED_LINE_6   55
 bool displayAvailable = false;
+Adafruit_SH1106G display = Adafruit_SH1106G(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 const uint8_t addresses[] = {0x3C, 0x3D, 0x3E, 0x3F}; // Addresses to try in order
 const int numAddresses = sizeof(addresses) / sizeof(addresses[0]);
 
 // Buttons with Bounce2
+#define BUTTON_REPEAT 50 // de-bounce and repeat in ms
 #define btn_up D5
 #define btn_enter D6
 #define btn_down D0
 Bounce2::Button upButton = Bounce2::Button();
 Bounce2::Button downButton = Bounce2::Button();
 Bounce2::Button enterButton = Bounce2::Button();
+static unsigned long lastUpRepeatTime = 0;
+static unsigned long lastDownRepeatTime = 0;
 
 // WIFI STATUS
 bool wifiStatus = false;
@@ -76,7 +86,7 @@ uint8_t  blue = 20;
 uint8_t  rgbBrightnessLevel = 50; // Changed to default to a reasonable value
 
 // Array for cursor position
-uint8_t  cursorPosition[5] = {15, 25, 35, 45, 55}; // Added one more position for Reset option
+uint8_t  cursorPosition[5] = {OLED_LINE_1, OLED_LINE_2, OLED_LINE_3, OLED_LINE_4, OLED_LINE_5}; // Added one more position for Reset option
 
 // cursorPosition[cursorIndex]
 uint8_t  cursorIndex = 0;

@@ -102,3 +102,16 @@
 - Applied ICACHE_FLASH_ATTR to non-time-critical functions to move them from IRAM to Flash
 - Added rate limiting for web interface to prevent request flooding
 - Improved button responsiveness during web operations
+
+0.2.9 2025-05-17
+- Started fixing DisplayMain() timing issue where it would not render properly during animation sequences
+- Improved button handling with better long-press detection and auto-repeat functionality
+- Consolidated menu management code reducing duplicate functionality
+- Standardized display line definitions with constants (OLED_LINE_x) throughout code
+- Removed redundant Wifi_connected_animation() function
+- Improved IP address display with dynamic positioning based on address length
+- Fixed menu navigation during simultaneous animation processing
+- Attempted to add button interrupt capability to skip connection wait screens
+- Enhanced modularity of display code by separating display features into logical functions
+- Fixed indentation and alignment issues in multiple files
+- Improved code comments and function naming consistency

@@ -2,7 +2,7 @@
 // 2025 Platima (https://github.com/platima https://plati.ma)
 // Handles OLED display initialisation due to potential addresses
 
-ICACHE_FLASH_ATTR bool initDisplayWithScan() {
+ICACHE_FLASH_ATTR bool OLED_Init() {
   Serial.println("Scanning for OLED display...");
   
   for (int i = 0; i < numAddresses; i++) {

@@ -20,38 +20,39 @@ void handleButtons() {
   
   unsigned long currentTime = millis();
   
-  // Throttle button updates
-  if (currentTime - lastButtonUpdate < BUTTON_UPDATE_INTERVAL) {
-    return;
-  }
-  lastButtonUpdate = currentTime;
-  
-  // Handle Up button
+  // ------ UP BUTTON ------
+  // Initial press detection (Bounce2 handles this perfectly)
   if (upButton.pressed()) {
     upPressStart = currentTime;
     upLongPressActive = false;
-    handleUpPress(false); // Short press
+    // Handle immediate button press
+    handleUpPress(false);
   }
   
+  // Released detection
   if (upButton.released()) {
-    upPressStart = 0;
     upLongPressActive = false;
+    upPressStart = 0;
   }
   
-  if (upButton.read() == HIGH && !upLongPressActive && (currentTime - upPressStart > 300)) {
-    upLongPressActive = true;
-    handleUpPress(true); // Long press
-  }
-  
-  // Keep processing long press
-  if (upLongPressActive && upButton.read() == HIGH) {
-    // Simulate continuous press for long hold
-    if (currentTime - upPressStart % 50 == 0) {
-      handleUpPress(true);
+  // Long press detection
+  if (upButton.read() == HIGH && upPressStart > 0) {
+    // First time we've held long enough?
+    if (!upLongPressActive && (currentTime - upPressStart > 300)) {
+      upLongPressActive = true;
+      handleUpPress(true); // First long press action
+      lastUpRepeatTime = currentTime; // Initialize repeat timer
+    }
+    
+    // Auto-repeat for long press
+    if (upLongPressActive && (currentTime - lastUpRepeatTime > BUTTON_REPEAT)) {
+      lastUpRepeatTime = currentTime;
+      handleUpPress(true); // Repeated long press action
     }
   }
   
-  // Handle Down button (similar to Up)
+  // ------ DOWN BUTTON ------
+  // Same pattern for down button
   if (downButton.pressed()) {
     downPressStart = currentTime;
     downLongPressActive = false;
@@ -59,22 +60,25 @@ void handleButtons() {
   }
   
   if (downButton.released()) {
-    downPressStart = 0;
     downLongPressActive = false;
+    downPressStart = 0;
   }
   
-  if (downButton.read() == HIGH && !downLongPressActive && (currentTime - downPressStart > 300)) {
-    downLongPressActive = true;
-    handleDownPress(true);
-  }
-  
-  if (downLongPressActive && downButton.read() == HIGH) {
-    if (currentTime - downPressStart % 50 == 0) {
+  if (downButton.read() == HIGH && downPressStart > 0) {
+    if (!downLongPressActive && (currentTime - downPressStart > 300)) {
+      downLongPressActive = true;
+      handleDownPress(true);
+      lastDownRepeatTime = currentTime;
+    }
+    
+    if (downLongPressActive && (currentTime - lastDownRepeatTime > BUTTON_REPEAT)) {
+      lastDownRepeatTime = currentTime;
       handleDownPress(true);
     }
   }
   
-  // Handle Enter button
+  // ------ ENTER BUTTON ------
+  // Simpler handling for enter - no auto-repeat needed
   if (enterButton.pressed()) {
     enterPressStart = currentTime;
     handleEnterPress();

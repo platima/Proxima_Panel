@@ -2,21 +2,6 @@
 // 2025 Platima (https://github.com/platima https://plati.ma)
 // Handles OLED display functions
 
-void displayMenu(){
-  if (!displayAvailable) return; // Skip if no display
-
-  switch(menuLayer){
-    case 0:
-      handleButtons();
-      break;
-    case 1:
-      handleButtons();
-      break;
-    case 2:
-      menuLayer_2(); // Reset confirmation
-      break;
-  }
-}
 
 // New menu layer for reset confirmation
 void menuLayer_2() {
@@ -121,8 +106,6 @@ void displayMain(){
   }
   lastDisplayUpdateTime = currentTime;
 
-  displayMenu();
-  
   // Only draw the regular menu if we're not in reset confirmation
   if(menuLayer != 2) {
     // TOP
@@ -132,54 +115,58 @@ void displayMain(){
     display.setCursor(0,0);
   
     if(wifiStatus == true){
-      Wifi_connected_animation();
+      Wifi_OLED_ShowIP();
     }
   
     // CURSOR
     display.setTextSize(1);             
     display.setTextColor(WHITE);        
-    display.setCursor(0,cursorPosition[cursorIndex]);             
+    display.setCursor(0, cursorPosition[cursorIndex]);             
     display.println(">");
     // RED
     display.setTextSize(1);             
     display.setTextColor(WHITE);        
-    display.setCursor(10,15);             
+    display.setCursor(10,OLED_LINE_1);             
     display.println("R");
-    display.drawFastHLine(20, 18, (red / 3), WHITE);
+    display.drawFastHLine(20, OLED_LINE_1+3, (red / 3), WHITE);
     // GREEN
     display.setTextSize(1);             
     display.setTextColor(WHITE);        
-    display.setCursor(10,25);             
+    display.setCursor(10,OLED_LINE_2);             
     display.println("G");
-    display.drawFastHLine(20, 28, (green / 3), WHITE);
+    display.drawFastHLine(20, OLED_LINE_2+3, (green / 3), WHITE);
     // BLUE
     display.setTextSize(1);             
     display.setTextColor(WHITE);        
-    display.setCursor(10,35);             
+    display.setCursor(10,25);             
     display.println("B");
-    display.drawFastHLine(20, 38, (blue / 3), WHITE);
+    display.drawFastHLine(20, OLED_LINE_3+3, (blue / 3), WHITE);
+
     // BRIGHTNESS - Now shows 0-255 range
     display.setTextSize(1);             
     display.setTextColor(WHITE);        
-    display.setCursor(10,45);             
+    display.setCursor(10, OLED_LINE_4);             
     display.println("LUX");
+    
     // Draw brightness bar, scale down for display (255/3 = 85 max length)
     int brightnessLength = rgbBrightnessLevel / 3;
-    display.drawFastHLine(30, 48, brightnessLength, WHITE);
-    display.drawFastHLine(30, 49, brightnessLength, WHITE);
-    display.drawFastHLine(30, 50, brightnessLength, WHITE);
+    display.drawFastHLine(30, OLED_LINE_4+3, brightnessLength, WHITE);
+    display.drawFastHLine(30, OLED_LINE_4+4, brightnessLength, WHITE);
+    display.drawFastHLine(30, OLED_LINE_4+5, brightnessLength, WHITE);
     
     // Show actual brightness value for clarity
-    display.setCursor(75, 45);
+    display.setCursor(109, OLED_LINE_4);
     display.print(rgbBrightnessLevel);
     
     // RESET OPTION
     display.setTextSize(1);             
     display.setTextColor(WHITE);        
-    display.setCursor(10,55);             
+    display.setCursor(10, OLED_LINE_5);
     display.println("RESET");
     
     // SEND DATA TO DISPLAY
     display.display();
+  } else {
+    menuLayer_2();
   }
 }
